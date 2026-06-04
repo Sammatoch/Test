@@ -5,7 +5,7 @@ import {
   Download, Copy, Check, Loader2, Save, Plus, Zap
 } from 'lucide-react'
 import TikTokPreview from '../components/TikTokPreview.jsx'
-import { renderSlideToDataURL } from '../lib/renderSlide.js'
+import { renderSlideToDataURL, DEFAULT_FONT_SIZE } from '../lib/renderSlide.js'
 
 const LANGUAGES = [
   { value: 'de', label: 'Deutsch' },
@@ -67,6 +67,7 @@ export default function Generator() {
   const [indexedTexts, setIndexedTexts] = useState([])
   const [useIndexing, setUseIndexing] = useState(false)
   const [copiedIdx, setCopiedIdx] = useState(null)
+  const [textSettings, setTextSettings] = useState([])
 
   const [generating, setGenerating] = useState(false)
   const [generatingImage, setGeneratingImage] = useState(false)
@@ -105,6 +106,17 @@ export default function Generator() {
     if (!base) { setRefFolders([]); return }
     window.api.references.listFolders(base).then(setRefFolders).catch(() => setRefFolders([]))
   }, [settings.referenceBaseDir])
+
+  const getTextSettings = (idx) =>
+    textSettings[idx] || { fontSize: DEFAULT_FONT_SIZE, offsetX: 0, offsetY: 0 }
+
+  const updateTextSettings = (idx, patch) => {
+    setTextSettings(prev => {
+      const next = [...prev]
+      next[idx] = { ...getTextSettings(idx), ...patch }
+      return next
+    })
+  }
 
   const composeImagePrompt = (slide) => {
     const scene = slide.imagePrompt || slide.text
@@ -153,6 +165,7 @@ export default function Generator() {
     setVisualStyle('')
     setSlideImages([])
     setIndexedTexts([])
+    setTextSettings([])
     setCurrentSlide(0)
     try {
       const result = await window.api.generate.content({
@@ -183,6 +196,7 @@ export default function Generator() {
       }
       setSlides(normalized)
       setSlideImages(new Array(normalized.length).fill(null))
+      setTextSettings(normalized.map(() => ({ fontSize: DEFAULT_FONT_SIZE, offsetX: 0, offsetY: 0 })))
       setHookSummary(result?.hookSummary || '')
       setVisualStyle(result?.visualStyle || '')
     } catch (e) {
@@ -276,7 +290,7 @@ export default function Generator() {
       let lastPath = ''
       for (let i = 0; i < slides.length; i++) {
         const text = getDisplayText(slides[i], i)
-        const dataUrl = await renderSlideToDataURL(text, i, slides.length, slideImages[i] || null)
+        const dataUrl = await renderSlideToDataURL(text, i, slides.length, slideImages[i] || null, getTextSettings(i))
         const base64 = dataUrl.replace(/^data:image\/png;base64,/, '')
         const num = String(i + 1).padStart(2, '0')
         lastPath = await window.api.export.post(base64, `tiktok_${stamp}_slide${num}.png`)
@@ -647,9 +661,44 @@ export default function Generator() {
               slides={slides}
               currentSlide={currentSlide}
               imageBase64={slideImages[currentSlide] || null}
+              fontSize={getTextSettings(currentSlide).fontSize}
+              offsetX={getTextSettings(currentSlide).offsetX}
+              offsetY={getTextSettings(currentSlide).offsetY}
+              onOffsetChange={slides.length ? (x, y) => updateTextSettings(currentSlide, { offsetX: x, offsetY: y }) : undefined}
             />
           </div>
+          {slides.length > 0 && (
+            <p className="text-[11px] text-tiktok-muted text-center mt-1.5">
+              Text in der Vorschau ziehen, um ihn zu verschieben
+            </p>
+          )}
         </div>
+
+        {slides.length > 0 && (
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-tiktok-muted uppercase tracking-wider">
+                Schriftgröße (Slide {currentSlide + 1})
+              </label>
+              <span className="text-xs text-tiktok-muted">{getTextSettings(currentSlide).fontSize}px</span>
+            </div>
+            <input
+              type="range"
+              min={40}
+              max={180}
+              step={1}
+              value={getTextSettings(currentSlide).fontSize}
+              onChange={e => updateTextSettings(currentSlide, { fontSize: Number(e.target.value) })}
+              className="w-full accent-tiktok-red"
+            />
+            <button
+              onClick={() => updateTextSettings(currentSlide, { fontSize: DEFAULT_FONT_SIZE, offsetX: 0, offsetY: 0 })}
+              className="text-xs text-tiktok-muted hover:text-tiktok-cyan transition-colors"
+            >
+              Größe & Position zurücksetzen
+            </button>
+          </div>
+        )}
 
         {slides.length > 1 && (
           <div className="flex items-center justify-center gap-3">

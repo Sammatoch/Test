@@ -1,5 +1,6 @@
 export const CANVAS_W = 1080
 export const CANVAS_H = 1920
+export const DEFAULT_FONT_SIZE = 85
 
 function wrapText(ctx, text, maxWidth) {
   const words = text.split(' ')
@@ -18,7 +19,7 @@ function wrapText(ctx, text, maxWidth) {
   return lines
 }
 
-export function drawSlide(ctx, { text, index, total, img }) {
+export function drawSlide(ctx, { text, index, total, img, fontSize = DEFAULT_FONT_SIZE, offsetX = 0, offsetY = 0 }) {
   ctx.clearRect(0, 0, CANVAS_W, CANVAS_H)
 
   if (img) {
@@ -58,7 +59,6 @@ export function drawSlide(ctx, { text, index, total, img }) {
 
   const padding = 80
   const maxWidth = CANVAS_W - padding * 2
-  const fontSize = 85
   ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, Arial, sans-serif`
   ctx.textAlign = 'center'
 
@@ -71,7 +71,8 @@ export function drawSlide(ctx, { text, index, total, img }) {
 
   const lineHeight = fontSize * 1.3
   const totalHeight = allLines.length * lineHeight
-  const startY = CANVAS_H / 2 - totalHeight / 2 + fontSize
+  const centerX = CANVAS_W / 2 + offsetX
+  const startY = CANVAS_H / 2 - totalHeight / 2 + fontSize + offsetY
 
   ctx.shadowColor = 'rgba(0,0,0,0.9)'
   ctx.shadowBlur = 20
@@ -80,7 +81,7 @@ export function drawSlide(ctx, { text, index, total, img }) {
 
   allLines.forEach((line, i) => {
     ctx.fillStyle = '#ffffff'
-    ctx.fillText(line, CANVAS_W / 2, startY + i * lineHeight)
+    ctx.fillText(line, centerX, startY + i * lineHeight)
   })
 
   ctx.shadowColor = 'transparent'
@@ -120,12 +121,12 @@ export function loadImage(base64) {
   })
 }
 
-export async function renderSlideToDataURL(text, index, total, base64) {
+export async function renderSlideToDataURL(text, index, total, base64, textOpts = {}) {
   const img = await loadImage(base64)
   const canvas = document.createElement('canvas')
   canvas.width = CANVAS_W
   canvas.height = CANVAS_H
   const ctx = canvas.getContext('2d')
-  drawSlide(ctx, { text, index, total, img })
+  drawSlide(ctx, { text, index, total, img, ...textOpts })
   return canvas.toDataURL('image/png')
 }
