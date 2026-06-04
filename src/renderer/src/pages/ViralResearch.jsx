@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, TrendingUp, Heart, Play, MessageCircle, Loader2, ArrowRight, AlertCircle } from 'lucide-react'
 
@@ -44,8 +44,18 @@ function VideoCard({ video, index }) {
   )
 }
 
+const SESSION_KEY = 'tiktok-viral-session'
+
+function loadSession() {
+  try { return JSON.parse(localStorage.getItem(SESSION_KEY)) } catch { return null }
+}
+function saveSession(data) {
+  try { localStorage.setItem(SESSION_KEY, JSON.stringify(data)) } catch { /* noop */ }
+}
+
 export default function ViralResearch() {
   const navigate = useNavigate()
+  const hydrated = useRef(false)
   const [query, setQuery] = useState('')
   const [maxResults, setMaxResults] = useState(20)
   const [loading, setLoading] = useState(false)
@@ -53,6 +63,24 @@ export default function ViralResearch() {
   const [videos, setVideos] = useState([])
   const [analysis, setAnalysis] = useState(null)
   const [error, setError] = useState('')
+
+  // Restore last session on mount
+  useEffect(() => {
+    const saved = loadSession()
+    if (saved) {
+      if (saved.query) setQuery(saved.query)
+      if (saved.maxResults) setMaxResults(saved.maxResults)
+      if (saved.videos?.length) setVideos(saved.videos)
+      if (saved.analysis) setAnalysis(saved.analysis)
+    }
+    hydrated.current = true
+  }, [])
+
+  // Persist whenever relevant state changes
+  useEffect(() => {
+    if (!hydrated.current) return
+    saveSession({ query, maxResults, videos, analysis })
+  }, [query, maxResults, videos, analysis])
 
   const handleSearch = async () => {
     if (!query.trim()) return
