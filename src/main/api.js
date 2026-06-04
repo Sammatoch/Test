@@ -100,7 +100,8 @@ Regeln für die Bild-Prompts:
 - JEDE Slide bekommt einen EIGENEN, individuellen Bild-Prompt (imagePrompt)
 - WICHTIG: Jeder imagePrompt MUSS exakt zum definierten visualStyle passen (gleiche Figur, gleiches Setting, gleiche Farben, gleiches Licht) — es soll wie dieselbe Bildserie aussehen
 - Es ändert sich nur die konkrete Szene/Handlung passend zum Text dieser Slide
-- Bild-Prompt auf Englisch, detailliert, cinematic, 9:16 Hochformat${isDialog ? '\n- DIALOG-MODUS: Jedes Bild MUSS ZWEI Personen zeigen — Person A im oberen Bildbereich, Person B im unteren Bildbereich sichtbar' : ''}
+- Bild-Prompt auf Englisch, detailliert, cinematic, 9:16 Hochformat
+- WICHTIG: NIEMALS Text, Wörter, Buchstaben, Beschriftungen oder Untertitel im Bild — der imagePrompt darf keinerlei Textinhalte aus "text" oder "text2" enthalten${isDialog ? '\n- DIALOG-MODUS: Jedes Bild MUSS ZWEI Personen zeigen — Person A im oberen Bildbereich, Person B im unteren Bildbereich sichtbar' : ''}
 
 Regel für "showsBook" (Buch im Bild):
 - Setze "showsBook" = true für JEDE Slide, in deren Szene ein Buch zu sehen ist (z.B. jemand hält ein Buch, liest darin, das Buch liegt auf dem Tisch)

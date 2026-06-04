@@ -253,7 +253,8 @@ export default function Generator() {
   const slideShowsBook = (slide) => !!(slide?.showsBook && coverImage)
 
   const composeImagePrompt = (slide) => {
-    const scene = slide.imagePrompt || slide.text
+    const scene = slide.imagePrompt || 'a cinematic scene'
+    const noText = ' No text, words, letters, or captions visible anywhere in the image.'
     const bookNote = slideShowsBook(slide)
       ? ` IMPORTANT: the book visible in the scene MUST be the exact book from the provided reference image(s) — same cover artwork, title and design. Do NOT invent a different book.`
       : ''
@@ -263,8 +264,8 @@ export default function Generator() {
     // Gemini Imagen only takes plain text prompts — the AI already writes consistent
     // prompts per slide. The full visualStyle prefix is only used for OpenAI where it
     // improves anchor-based consistency.
-    if (imageProvider === 'gemini' || !visualStyle) return styleTag + scene + bookNote
-    return `${styleTag}Consistent visual style for the entire image series: ${visualStyle}. Scene for this slide: ${scene}. Vertical 9:16 portrait, cinematic.${bookNote}`
+    if (imageProvider === 'gemini' || !visualStyle) return styleTag + scene + bookNote + noText
+    return `${styleTag}Consistent visual style for the entire image series: ${visualStyle}. Scene for this slide: ${scene}. Vertical 9:16 portrait, cinematic.${bookNote}${noText}`
   }
 
   const composeCoverSlidePrompt = () => {
