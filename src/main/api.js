@@ -263,41 +263,23 @@ async function generateImageOpenAI(prompt, settings, referenceImages) {
   return Buffer.from(arrayBuffer).toString('base64')
 }
 
-async function generateImageGemini(prompt, settings, referenceImages) {
+async function generateImageGemini(prompt, settings) {
   if (!settings.geminiKey) throw new Error('Bitte Gemini API-Key in Einstellungen hinterlegen')
   const ai = new GoogleGenAI({ apiKey: settings.geminiKey })
-
-  // With reference images, use the image-capable generateContent model (nano banana)
-  if (referenceImages && referenceImages.length) {
-    const parts = [
-      { text: `${prompt}\n\nMatch the visual style, characters, colors and lighting of the provided reference image(s). Vertical 9:16 portrait format.` },
-      ...referenceImages.slice(0, 4).map(b64 => ({ inlineData: { mimeType: 'image/png', data: b64 } }))
-    ]
-    const res = await withRetry(() => ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
-      contents: [{ role: 'user', parts }],
-      config: { responseModalities: ['Image'] }
-    }))
-    const outParts = res?.candidates?.[0]?.content?.parts || []
-    const imgPart = outParts.find(p => p.inlineData?.data)
-    if (!imgPart) throw new Error('Gemini hat kein Bild zurückgegeben (evtl. durch Sicherheitsfilter blockiert)')
-    return imgPart.inlineData.data
-  }
-
   const res = await withRetry(() => ai.models.generateImages({
     model: 'imagen-4.0-generate-001',
     prompt,
     config: { numberOfImages: 1, aspectRatio: '9:16' }
   }))
   const generated = res?.generatedImages?.[0]
-  const bytes = generated?.image?.imageBytes
+  const bytes = generated?.image?.imageBytes || generated?.image?.bytesBase64Encoded
   if (!bytes) throw new Error('Gemini hat kein Bild zurückgegeben (evtl. durch Sicherheitsfilter blockiert)')
   return bytes
 }
 
 export async function generateImage(prompt, settings, imageProvider = 'openai', referenceImages = null) {
   try {
-    if (imageProvider === 'gemini') return await generateImageGemini(prompt, settings, referenceImages)
+    if (imageProvider === 'gemini') return await generateImageGemini(prompt, settings)
     return await generateImageOpenAI(prompt, settings, referenceImages)
   } catch (e) {
     if (isRateLimit(e)) {

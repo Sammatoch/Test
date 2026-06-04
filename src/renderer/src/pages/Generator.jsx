@@ -108,10 +108,11 @@ export default function Generator() {
 
   const composeImagePrompt = (slide) => {
     const scene = slide.imagePrompt || slide.text
-    if (visualStyle) {
-      return `Consistent visual style for the entire image series: ${visualStyle}. Scene for this slide: ${scene}. Vertical 9:16 portrait, cinematic.`
-    }
-    return scene
+    // Gemini Imagen only takes plain text prompts — the AI already writes consistent
+    // prompts per slide, so no prefix needed. The visual style prefix is only used
+    // for OpenAI where it improves anchor-based consistency.
+    if (imageProvider === 'gemini' || !visualStyle) return scene
+    return `Consistent visual style for the entire image series: ${visualStyle}. Scene for this slide: ${scene}. Vertical 9:16 portrait, cinematic.`
   }
 
   const handleSelectRefFolder = async (folderPath) => {
@@ -221,9 +222,9 @@ export default function Generator() {
       let anchor = null
       for (let i = 0; i < slides.length; i++) {
         const prompt = composeImagePrompt(slides[i])
-        const refs = [...referenceImages]
-        // Use the first generated image as a style anchor for the rest → consistent look
-        if (consistencyMode && anchor) refs.unshift(anchor)
+        // Gemini Imagen doesn't support reference images — consistency comes from the AI prompts
+        const refs = imageProvider === 'gemini' ? [] : [...referenceImages]
+        if (imageProvider !== 'gemini' && consistencyMode && anchor) refs.unshift(anchor)
         const b64 = await window.api.generate.image(prompt, imageProvider, refs.length ? refs : null)
         images[i] = b64
         if (consistencyMode && i === 0) anchor = b64
@@ -249,9 +250,8 @@ export default function Generator() {
     setError('')
     setGeneratingSlideIdx(idx)
     try {
-      const refs = [...referenceImages]
-      // Match an already-generated sibling so the regenerated slide stays consistent
-      if (consistencyMode) {
+      const refs = imageProvider === 'gemini' ? [] : [...referenceImages]
+      if (imageProvider !== 'gemini' && consistencyMode) {
         const sibling = slideImages.find((img, i) => img && i !== idx)
         if (sibling) refs.unshift(sibling)
       }
