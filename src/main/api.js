@@ -144,10 +144,14 @@ export async function generateImage(prompt, settings) {
     model: 'dall-e-3',
     prompt,
     n: 1,
-    size: '1024x1792',
-    response_format: 'b64_json'
+    size: '1024x1792'
   })
-  return res.data[0].b64_json
+  const img = res.data[0]
+  // Some image models return base64 directly, dall-e-3 returns a URL by default
+  if (img.b64_json) return img.b64_json
+  const resp = await fetch(img.url)
+  const arrayBuffer = await resp.arrayBuffer()
+  return Buffer.from(arrayBuffer).toString('base64')
 }
 
 export function applyTikTokIndexing(text) {
