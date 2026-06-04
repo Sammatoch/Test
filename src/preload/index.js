@@ -35,6 +35,7 @@ contextBridge.exposeInMainWorld('api', {
   },
   references: {
     selectFolder: () => ipcRenderer.invoke('dialog:selectFolder'),
+    selectImageFile: () => ipcRenderer.invoke('dialog:selectImageFile'),
     listFolders: (baseDir) => ipcRenderer.invoke('references:listFolders', baseDir),
     listImages: (folderPath) => ipcRenderer.invoke('references:listImages', folderPath),
     readAsBase64: (filePath) => ipcRenderer.invoke('references:readAsBase64', filePath)

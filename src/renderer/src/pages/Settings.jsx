@@ -53,6 +53,7 @@ export default function Settings() {
     geminiKey: '',
     apifyKey: '',
     referenceBaseDir: '',
+    bookCoverPath: '',
     defaultBookTitle: 'Mein Sauerteig Backbuch',
     defaultNiche: 'Backen / Sauerteig',
     defaultLanguage: 'de',
@@ -60,6 +61,7 @@ export default function Settings() {
   })
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
+  const [coverPreview, setCoverPreview] = useState(null)
 
   useEffect(() => {
     window.api.settings.get().then(s => {
@@ -69,9 +71,22 @@ export default function Settings() {
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
 
+  // Load a preview of the configured book cover
+  useEffect(() => {
+    if (!form.bookCoverPath) { setCoverPreview(null); return }
+    window.api.references.readAsBase64(form.bookCoverPath)
+      .then(b64 => setCoverPreview(b64 || null))
+      .catch(() => setCoverPreview(null))
+  }, [form.bookCoverPath])
+
   const handleSelectFolder = async () => {
     const dir = await window.api.references.selectFolder()
     if (dir) set('referenceBaseDir', dir)
+  }
+
+  const handleSelectCover = async () => {
+    const file = await window.api.references.selectImageFile()
+    if (file) set('bookCoverPath', file)
   }
 
   const handleSave = async () => {
@@ -161,6 +176,42 @@ export default function Settings() {
                 </button>
               </div>
             </Field>
+
+            <div className="mt-4">
+              <Field
+                label="Buchcover (letzte Slide)"
+                hint="Dein Buchcover. Es wird im Generator automatisch als Bild der LETZTEN Slide verwendet (mit deinem Kauf-Aufruf als Text darüber)."
+              >
+                <div className="flex gap-2 items-start">
+                  {coverPreview ? (
+                    <img
+                      src={'data:image/png;base64,' + coverPreview}
+                      alt="Cover"
+                      className="w-12 h-[68px] object-cover rounded-md border border-tiktok-border shrink-0"
+                    />
+                  ) : (
+                    <div className="w-12 h-[68px] rounded-md border border-dashed border-tiktok-border flex items-center justify-center shrink-0">
+                      <FolderOpen size={16} className="text-tiktok-muted opacity-50" />
+                    </div>
+                  )}
+                  <input
+                    type="text"
+                    value={form.bookCoverPath}
+                    onChange={e => set('bookCoverPath', e.target.value)}
+                    placeholder="z.B. C:\Users\Du\cover.png"
+                    className="flex-1 bg-black border border-tiktok-border rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-tiktok-red placeholder-tiktok-muted"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSelectCover}
+                    className="flex items-center gap-2 px-4 py-2.5 border border-tiktok-border hover:border-white/30 text-tiktok-muted hover:text-white rounded-lg text-sm transition-colors shrink-0"
+                  >
+                    <FolderOpen size={16} />
+                    Wählen
+                  </button>
+                </div>
+              </Field>
+            </div>
           </div>
 
           <div className="bg-tiktok-surface border border-tiktok-border rounded-xl p-5">

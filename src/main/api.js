@@ -68,7 +68,7 @@ Regeln für den Text:
 - 6-10 kurze Slides, jede max. 2-3 Zeilen
 - Sehr kurze, prägnante Sätze die emotional triggern
 - Dialoge erzeugen starke Spannung
-- Letzter Slide: Call-to-Action mit Buchtitel
+- Letzter Slide: klarer KAUF-Aufruf (Call-to-Action), der konkret zum Kauf des Buchs "${bookTitle}" anregt
 - Text muss zum Weiterklicken zwingen
 
 Regeln für den durchgängigen Bild-Stil (visualStyle):

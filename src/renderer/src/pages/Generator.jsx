@@ -83,6 +83,8 @@ export default function Generator() {
   const [selectedRefFolder, setSelectedRefFolder] = useState('')
   const [referenceImages, setReferenceImages] = useState([])
   const [loadingRefs, setLoadingRefs] = useState(false)
+  const [coverImage, setCoverImage] = useState(null)
+  const [useCoverLastSlide, setUseCoverLastSlide] = useState(true)
   const [indexedTexts, setIndexedTexts] = useState([])
   const [useIndexing, setUseIndexing] = useState(false)
   const [copiedIdx, setCopiedIdx] = useState(null)
@@ -122,6 +124,7 @@ export default function Generator() {
         setProvider(saved.provider ?? 'anthropic')
         setImageProvider(saved.imageProvider ?? 'openai')
         if (saved.globalFontSize) setGlobalFontSize(saved.globalFontSize)
+        if (typeof saved.useCoverLastSlide === 'boolean') setUseCoverLastSlide(saved.useCoverLastSlide)
         // Restore generated text (images are intentionally not persisted)
         if (Array.isArray(saved.slides) && saved.slides.length) {
           setSlides(saved.slides)
@@ -151,10 +154,11 @@ export default function Generator() {
     if (!hydrated.current) return
     saveSession({
       bookTitle, niche, situation, hook, perspective, language, provider, imageProvider, globalFontSize,
+      useCoverLastSlide,
       // Text only — strip nothing, slides hold only text/label/imagePrompt
       slides, hookSummary, visualStyle, textSettings
     })
-  }, [bookTitle, niche, situation, hook, perspective, language, provider, imageProvider, globalFontSize, slides, hookSummary, visualStyle, textSettings])
+  }, [bookTitle, niche, situation, hook, perspective, language, provider, imageProvider, globalFontSize, useCoverLastSlide, slides, hookSummary, visualStyle, textSettings])
 
   useEffect(() => {
     if (location.state?.hook) setHook(location.state.hook)
@@ -166,6 +170,16 @@ export default function Generator() {
     if (!base) { setRefFolders([]); return }
     window.api.references.listFolders(base).then(setRefFolders).catch(() => setRefFolders([]))
   }, [settings.referenceBaseDir])
+
+  // Load the book cover used for the last slide
+  useEffect(() => {
+    if (!settings.bookCoverPath) { setCoverImage(null); return }
+    window.api.references.readAsBase64(settings.bookCoverPath)
+      .then(b64 => setCoverImage(b64 || null))
+      .catch(() => setCoverImage(null))
+  }, [settings.bookCoverPath])
+
+  const isCoverSlide = (idx) => useCoverLastSlide && coverImage && idx === slides.length - 1
 
   const getTextSettings = (idx) => ({
     fontSize: globalFontSize,
@@ -312,6 +326,13 @@ export default function Generator() {
       const images = [...slideImages]
       let anchor = null
       for (let i = 0; i < slides.length; i++) {
+        // Last slide always shows the book cover (no AI generation, no extra cost)
+        if (isCoverSlide(i)) {
+          images[i] = coverImage
+          setSlideImages([...images])
+          setImageProgress({ done: i + 1, total: slides.length })
+          continue
+        }
         const prompt = composeImagePrompt(slides[i])
         // Gemini Imagen doesn't support reference images — consistency comes from the AI prompts
         const refs = imageProvider === 'gemini' ? [] : [...referenceImages]
@@ -336,6 +357,15 @@ export default function Generator() {
 
   const handleGenerateSlideImage = async (idx) => {
     if (!slides[idx]) return
+    // Last slide uses the book cover directly
+    if (isCoverSlide(idx)) {
+      setSlideImages(prev => {
+        const next = [...prev]
+        next[idx] = coverImage
+        return next
+      })
+      return
+    }
     const prompt = composeImagePrompt(slides[idx])
     if (!prompt) return
     setError('')
@@ -862,6 +892,30 @@ export default function Generator() {
               />
             </button>
           </div>
+
+          <div className="flex items-center justify-between py-0.5">
+            <span className="text-xs text-tiktok-muted" title="Letzte Slide zeigt automatisch dein Buchcover">
+              Letzte Slide = Buchcover
+            </span>
+            <button
+              onClick={() => setUseCoverLastSlide(v => !v)}
+              disabled={!coverImage}
+              className={`relative w-10 h-5 rounded-full transition-colors disabled:opacity-40 ${
+                useCoverLastSlide && coverImage ? 'bg-tiktok-red' : 'bg-tiktok-border'
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
+                  useCoverLastSlide && coverImage ? 'translate-x-5' : ''
+                }`}
+              />
+            </button>
+          </div>
+          {!coverImage && (
+            <p className="text-[11px] text-tiktok-muted leading-snug">
+              Buchcover in den Einstellungen festlegen, um es als letzte Slide zu nutzen.
+            </p>
+          )}
 
           {settings.referenceBaseDir ? (
             <div className="space-y-1.5">

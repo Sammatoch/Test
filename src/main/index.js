@@ -93,6 +93,15 @@ ipcMain.handle('dialog:selectFolder', async () => {
   return result.filePaths[0]
 })
 
+ipcMain.handle('dialog:selectImageFile', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile'],
+    filters: [{ name: 'Bilder', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }]
+  })
+  if (result.canceled || !result.filePaths.length) return null
+  return result.filePaths[0]
+})
+
 ipcMain.handle('references:listFolders', (_, baseDir) => {
   if (!baseDir || !fs.existsSync(baseDir)) return []
   const folders = [{ name: '(Hauptordner)', path: baseDir }]
