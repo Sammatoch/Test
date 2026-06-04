@@ -1,6 +1,48 @@
 import Anthropic from '@anthropic-ai/sdk'
 import OpenAI from 'openai'
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai'
+
+const POST_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    slides: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          text: { type: 'string' },
+          label: { type: 'string' }
+        },
+        required: ['text', 'label']
+      }
+    },
+    imagePrompt: { type: 'string' },
+    hookSummary: { type: 'string' }
+  },
+  required: ['slides', 'imagePrompt', 'hookSummary']
+}
+
+const GEMINI_SCHEMA = {
+  type: SchemaType.OBJECT,
+  properties: {
+    slides: {
+      type: SchemaType.ARRAY,
+      items: {
+        type: SchemaType.OBJECT,
+        properties: {
+          text: { type: SchemaType.STRING },
+          label: { type: SchemaType.STRING }
+        },
+        required: ['text', 'label']
+      }
+    },
+    imagePrompt: { type: SchemaType.STRING },
+    hookSummary: { type: SchemaType.STRING }
+  },
+  required: ['slides', 'imagePrompt', 'hookSummary']
+}
 
 function buildPrompt(params) {
   const { bookTitle, niche, situation, hook, perspective, language } = params
@@ -57,9 +99,13 @@ export async function generateContent(params, settings) {
     const msg = await client.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 2048,
+      tools: [{ name: 'create_tiktok_post', description: 'Erstellt einen TikTok-Slideshow-Post', input_schema: POST_SCHEMA }],
+      tool_choice: { type: 'tool', name: 'create_tiktok_post' },
       messages: [{ role: 'user', content: prompt }]
     })
-    return parseAIResponse(msg.content[0].text)
+    const toolUse = msg.content.find(b => b.type === 'tool_use')
+    if (!toolUse) throw new Error('Keine gültige Antwort von Claude erhalten')
+    return toolUse.input
   }
 
   if (provider === 'openai') {
@@ -68,7 +114,11 @@ export async function generateContent(params, settings) {
     const res = await client.chat.completions.create({
       model: 'gpt-4o',
       messages: [{ role: 'user', content: prompt }],
-      max_tokens: 2048
+      max_tokens: 2048,
+      response_format: {
+        type: 'json_schema',
+        json_schema: { name: 'tiktok_post', strict: true, schema: POST_SCHEMA }
+      }
     })
     return parseAIResponse(res.choices[0].message.content)
   }
@@ -76,10 +126,12 @@ export async function generateContent(params, settings) {
   if (provider === 'gemini') {
     if (!settings.geminiKey) throw new Error('Bitte Gemini API-Key in Einstellungen hinterlegen')
     const genAI = new GoogleGenerativeAI(settings.geminiKey)
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.0-flash',
+      generationConfig: { responseMimeType: 'application/json', responseSchema: GEMINI_SCHEMA }
+    })
     const result = await model.generateContent(prompt)
-    const text = result.response.text()
-    return parseAIResponse(text)
+    return parseAIResponse(result.response.text())
   }
 
   throw new Error(`Unbekannter Provider: ${provider}`)
