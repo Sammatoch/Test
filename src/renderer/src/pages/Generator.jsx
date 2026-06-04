@@ -67,6 +67,7 @@ export default function Generator() {
   const [indexedTexts, setIndexedTexts] = useState([])
   const [useIndexing, setUseIndexing] = useState(false)
   const [copiedIdx, setCopiedIdx] = useState(null)
+  const [globalFontSize, setGlobalFontSize] = useState(DEFAULT_FONT_SIZE)
   const [textSettings, setTextSettings] = useState([])
 
   const [generating, setGenerating] = useState(false)
@@ -107,8 +108,11 @@ export default function Generator() {
     window.api.references.listFolders(base).then(setRefFolders).catch(() => setRefFolders([]))
   }, [settings.referenceBaseDir])
 
-  const getTextSettings = (idx) =>
-    textSettings[idx] || { fontSize: DEFAULT_FONT_SIZE, offsetX: 0, offsetY: 0 }
+  const getTextSettings = (idx) => ({
+    fontSize: globalFontSize,
+    offsetX: textSettings[idx]?.offsetX ?? 0,
+    offsetY: textSettings[idx]?.offsetY ?? 0
+  })
 
   const updateTextSettings = (idx, patch) => {
     setTextSettings(prev => {
@@ -166,6 +170,7 @@ export default function Generator() {
     setSlideImages([])
     setIndexedTexts([])
     setTextSettings([])
+    setGlobalFontSize(DEFAULT_FONT_SIZE)
     setCurrentSlide(0)
     try {
       const result = await window.api.generate.content({
@@ -196,7 +201,7 @@ export default function Generator() {
       }
       setSlides(normalized)
       setSlideImages(new Array(normalized.length).fill(null))
-      setTextSettings(normalized.map(() => ({ fontSize: DEFAULT_FONT_SIZE, offsetX: 0, offsetY: 0 })))
+      setTextSettings(normalized.map(() => ({ offsetX: 0, offsetY: 0 })))
       setHookSummary(result?.hookSummary || '')
       setVisualStyle(result?.visualStyle || '')
     } catch (e) {
@@ -678,24 +683,24 @@ export default function Generator() {
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="text-xs text-tiktok-muted uppercase tracking-wider">
-                Schriftgröße (Slide {currentSlide + 1})
+                Schriftgröße (alle Slides)
               </label>
-              <span className="text-xs text-tiktok-muted">{getTextSettings(currentSlide).fontSize}px</span>
+              <span className="text-xs text-tiktok-muted">{globalFontSize}px</span>
             </div>
             <input
               type="range"
               min={40}
               max={180}
               step={1}
-              value={getTextSettings(currentSlide).fontSize}
-              onChange={e => updateTextSettings(currentSlide, { fontSize: Number(e.target.value) })}
+              value={globalFontSize}
+              onChange={e => setGlobalFontSize(Number(e.target.value))}
               className="w-full accent-tiktok-red"
             />
             <button
-              onClick={() => updateTextSettings(currentSlide, { fontSize: DEFAULT_FONT_SIZE, offsetX: 0, offsetY: 0 })}
+              onClick={() => { setGlobalFontSize(DEFAULT_FONT_SIZE); updateTextSettings(currentSlide, { offsetX: 0, offsetY: 0 }) }}
               className="text-xs text-tiktok-muted hover:text-tiktok-cyan transition-colors"
             >
-              Größe & Position zurücksetzen
+              Zurücksetzen (Slide {currentSlide + 1})
             </button>
           </div>
         )}
