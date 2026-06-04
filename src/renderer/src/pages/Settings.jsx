@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Save, Eye, EyeOff } from 'lucide-react'
+import { Save, Eye, EyeOff, FolderOpen } from 'lucide-react'
 
 const LANGUAGES = [
   { value: 'de', label: 'Deutsch' },
@@ -52,6 +52,7 @@ export default function Settings() {
     openaiKey: '',
     geminiKey: '',
     apifyKey: '',
+    referenceBaseDir: '',
     defaultBookTitle: 'Mein Sauerteig Backbuch',
     defaultNiche: 'Backen / Sauerteig',
     defaultLanguage: 'de',
@@ -67,6 +68,11 @@ export default function Settings() {
   }, [])
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
+
+  const handleSelectFolder = async () => {
+    const dir = await window.api.references.selectFolder()
+    if (dir) set('referenceBaseDir', dir)
+  }
 
   const handleSave = async () => {
     try {
@@ -129,6 +135,32 @@ export default function Settings() {
                 />
               </Field>
             </div>
+          </div>
+
+          <div className="bg-tiktok-surface border border-tiktok-border rounded-xl p-5">
+            <h3 className="text-sm font-semibold text-tiktok-cyan mb-4 uppercase tracking-wider">Referenzbilder</h3>
+            <Field
+              label="Referenz-Basisordner"
+              hint="Ordner auf deiner Festplatte mit Referenzbildern. Im Generator kannst du dann per Combobox einen Unterordner auswählen, dessen Bilder als Stil-Referenz genutzt werden."
+            >
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={form.referenceBaseDir}
+                  onChange={e => set('referenceBaseDir', e.target.value)}
+                  placeholder="z.B. C:\Users\Du\Referenzen"
+                  className="flex-1 bg-black border border-tiktok-border rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-tiktok-red placeholder-tiktok-muted"
+                />
+                <button
+                  type="button"
+                  onClick={handleSelectFolder}
+                  className="flex items-center gap-2 px-4 py-2.5 border border-tiktok-border hover:border-white/30 text-tiktok-muted hover:text-white rounded-lg text-sm transition-colors shrink-0"
+                >
+                  <FolderOpen size={16} />
+                  Wählen
+                </button>
+              </div>
+            </Field>
           </div>
 
           <div className="bg-tiktok-surface border border-tiktok-border rounded-xl p-5">

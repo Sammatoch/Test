@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron'
 import path from 'path'
 import fs from 'fs'
 import { initStore, store } from './store.js'
@@ -77,12 +77,48 @@ ipcMain.handle('generate:content', async (_, params) => {
   return generateContent(params, settings)
 })
 
-ipcMain.handle('generate:image', async (_, prompt, imageProvider) => {
+ipcMain.handle('generate:image', async (_, prompt, imageProvider, referenceImages) => {
   const settings = store.settings.get()
-  return generateImage(prompt, settings, imageProvider)
+  return generateImage(prompt, settings, imageProvider, referenceImages)
 })
 
 ipcMain.handle('generate:tiktokText', (_, text) => applyTikTokIndexing(text))
+
+// Reference images
+const IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.webp', '.gif']
+
+ipcMain.handle('dialog:selectFolder', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] })
+  if (result.canceled || !result.filePaths.length) return null
+  return result.filePaths[0]
+})
+
+ipcMain.handle('references:listFolders', (_, baseDir) => {
+  if (!baseDir || !fs.existsSync(baseDir)) return []
+  const folders = [{ name: '(Hauptordner)', path: baseDir }]
+  try {
+    for (const entry of fs.readdirSync(baseDir, { withFileTypes: true })) {
+      if (entry.isDirectory()) folders.push({ name: entry.name, path: path.join(baseDir, entry.name) })
+    }
+  } catch { /* ignore unreadable dir */ }
+  return folders
+})
+
+ipcMain.handle('references:listImages', (_, folderPath) => {
+  if (!folderPath || !fs.existsSync(folderPath)) return []
+  try {
+    return fs.readdirSync(folderPath, { withFileTypes: true })
+      .filter(e => e.isFile() && IMAGE_EXTS.includes(path.extname(e.name).toLowerCase()))
+      .map(e => ({ name: e.name, path: path.join(folderPath, e.name) }))
+  } catch {
+    return []
+  }
+})
+
+ipcMain.handle('references:readAsBase64', (_, filePath) => {
+  if (!filePath || !fs.existsSync(filePath)) return null
+  return fs.readFileSync(filePath).toString('base64')
+})
 
 // Viral Research
 ipcMain.handle('viral:scrape', async (_, query, maxResults) => {

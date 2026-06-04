@@ -55,9 +55,15 @@ export default function Generator() {
   const [hookSummary, setHookSummary] = useState('')
   const [currentSlide, setCurrentSlide] = useState(0)
 
+  const [visualStyle, setVisualStyle] = useState('')
   const [imageProvider, setImageProvider] = useState('openai')
   const [slideImages, setSlideImages] = useState([])
   const [imageProgress, setImageProgress] = useState(null)
+  const [consistencyMode, setConsistencyMode] = useState(true)
+  const [refFolders, setRefFolders] = useState([])
+  const [selectedRefFolder, setSelectedRefFolder] = useState('')
+  const [referenceImages, setReferenceImages] = useState([])
+  const [loadingRefs, setLoadingRefs] = useState(false)
   const [indexedTexts, setIndexedTexts] = useState([])
   const [useIndexing, setUseIndexing] = useState(false)
   const [copiedIdx, setCopiedIdx] = useState(null)
@@ -94,6 +100,41 @@ export default function Generator() {
     if (location.state?.situation) setSituation(location.state.situation)
   }, [location.state])
 
+  useEffect(() => {
+    const base = settings.referenceBaseDir
+    if (!base) { setRefFolders([]); return }
+    window.api.references.listFolders(base).then(setRefFolders).catch(() => setRefFolders([]))
+  }, [settings.referenceBaseDir])
+
+  const composeImagePrompt = (slide) => {
+    const scene = slide.imagePrompt || slide.text
+    if (visualStyle) {
+      return `Consistent visual style for the entire image series: ${visualStyle}. Scene for this slide: ${scene}. Vertical 9:16 portrait, cinematic.`
+    }
+    return scene
+  }
+
+  const handleSelectRefFolder = async (folderPath) => {
+    setSelectedRefFolder(folderPath)
+    setReferenceImages([])
+    if (!folderPath) return
+    setLoadingRefs(true)
+    try {
+      const files = await window.api.references.listImages(folderPath)
+      const loaded = []
+      for (const f of files.slice(0, 6)) {
+        const b64 = await window.api.references.readAsBase64(f.path)
+        if (b64) loaded.push(b64)
+      }
+      setReferenceImages(loaded)
+      if (!loaded.length) setError('Im gewählten Ordner wurden keine Bilder gefunden.')
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setLoadingRefs(false)
+    }
+  }
+
   const showSuccess = (msg) => {
     setSuccessMsg(msg)
     setTimeout(() => setSuccessMsg(''), 2500)
@@ -108,6 +149,7 @@ export default function Generator() {
     setGenerating(true)
     setSlides([])
     setHookSummary('')
+    setVisualStyle('')
     setSlideImages([])
     setIndexedTexts([])
     setCurrentSlide(0)
@@ -141,6 +183,7 @@ export default function Generator() {
       setSlides(normalized)
       setSlideImages(new Array(normalized.length).fill(null))
       setHookSummary(result?.hookSummary || '')
+      setVisualStyle(result?.visualStyle || '')
     } catch (e) {
       setError(e.message)
     } finally {
@@ -175,10 +218,15 @@ export default function Generator() {
     setImageProgress({ done: 0, total: slides.length })
     try {
       const images = [...slideImages]
+      let anchor = null
       for (let i = 0; i < slides.length; i++) {
-        const prompt = slides[i].imagePrompt || slides[i].text
-        const b64 = await window.api.generate.image(prompt, imageProvider)
+        const prompt = composeImagePrompt(slides[i])
+        const refs = [...referenceImages]
+        // Use the first generated image as a style anchor for the rest → consistent look
+        if (consistencyMode && anchor) refs.unshift(anchor)
+        const b64 = await window.api.generate.image(prompt, imageProvider, refs.length ? refs : null)
         images[i] = b64
+        if (consistencyMode && i === 0) anchor = b64
         setSlideImages([...images])
         setImageProgress({ done: i + 1, total: slides.length })
         // Small pause between requests to avoid hitting provider rate limits
@@ -195,12 +243,19 @@ export default function Generator() {
   }
 
   const handleGenerateSlideImage = async (idx) => {
-    const prompt = slides[idx]?.imagePrompt || slides[idx]?.text
+    if (!slides[idx]) return
+    const prompt = composeImagePrompt(slides[idx])
     if (!prompt) return
     setError('')
     setGeneratingSlideIdx(idx)
     try {
-      const b64 = await window.api.generate.image(prompt, imageProvider)
+      const refs = [...referenceImages]
+      // Match an already-generated sibling so the regenerated slide stays consistent
+      if (consistencyMode) {
+        const sibling = slideImages.find((img, i) => img && i !== idx)
+        if (sibling) refs.unshift(sibling)
+      }
+      const b64 = await window.api.generate.image(prompt, imageProvider, refs.length ? refs : null)
       setSlideImages(prev => {
         const next = [...prev]
         next[idx] = b64
@@ -637,6 +692,58 @@ export default function Generator() {
               </button>
             ))}
           </div>
+          <div className="flex items-center justify-between py-0.5">
+            <span className="text-xs text-tiktok-muted" title="Nutzt das erste Bild als Stil-Anker für alle weiteren Slides">
+              Konsistenz-Modus
+            </span>
+            <button
+              onClick={() => setConsistencyMode(v => !v)}
+              className={`relative w-10 h-5 rounded-full transition-colors ${
+                consistencyMode ? 'bg-tiktok-red' : 'bg-tiktok-border'
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
+                  consistencyMode ? 'translate-x-5' : ''
+                }`}
+              />
+            </button>
+          </div>
+
+          {settings.referenceBaseDir ? (
+            <div className="space-y-1.5">
+              <label className="text-xs text-tiktok-muted uppercase tracking-wider">Referenzordner</label>
+              <select
+                value={selectedRefFolder}
+                onChange={e => handleSelectRefFolder(e.target.value)}
+                className={selectClass}
+              >
+                <option value="">Keine Referenz</option>
+                {refFolders.map(f => (
+                  <option key={f.path} value={f.path}>{f.name}</option>
+                ))}
+              </select>
+              {loadingRefs && <p className="text-xs text-tiktok-muted">Lade Referenzbilder...</p>}
+              {!loadingRefs && referenceImages.length > 0 && (
+                <div className="flex items-center gap-1 flex-wrap">
+                  {referenceImages.map((b64, i) => (
+                    <img
+                      key={i}
+                      src={'data:image/png;base64,' + b64}
+                      alt=""
+                      className="w-8 h-8 object-cover rounded border border-tiktok-border"
+                    />
+                  ))}
+                  <span className="text-xs text-tiktok-cyan ml-1">{referenceImages.length} Referenz(en) aktiv</span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-xs text-tiktok-muted leading-snug">
+              Tipp: Lege in den Einstellungen einen Referenz-Basisordner fest, um eigene Bilder als Stil-Referenz zu nutzen.
+            </p>
+          )}
+
           <button
             onClick={handleGenerateAllImages}
             disabled={generatingImage || generatingSlideIdx !== null || slides.length === 0}

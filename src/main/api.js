@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
-import OpenAI from 'openai'
+import OpenAI, { toFile } from 'openai'
 import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai'
 import { GoogleGenAI } from '@google/genai'
 
@@ -20,9 +20,10 @@ const POST_SCHEMA = {
         required: ['text', 'label', 'imagePrompt']
       }
     },
+    visualStyle: { type: 'string' },
     hookSummary: { type: 'string' }
   },
-  required: ['slides', 'hookSummary']
+  required: ['slides', 'visualStyle', 'hookSummary']
 }
 
 const GEMINI_SCHEMA = {
@@ -40,9 +41,10 @@ const GEMINI_SCHEMA = {
         required: ['text', 'label', 'imagePrompt']
       }
     },
+    visualStyle: { type: SchemaType.STRING },
     hookSummary: { type: SchemaType.STRING }
   },
-  required: ['slides', 'hookSummary']
+  required: ['slides', 'visualStyle', 'hookSummary']
 }
 
 function buildPrompt(params) {
@@ -69,15 +71,22 @@ Regeln für den Text:
 - Letzter Slide: Call-to-Action mit Buchtitel
 - Text muss zum Weiterklicken zwingen
 
+Regeln für den durchgängigen Bild-Stil (visualStyle):
+- Definiere EINEN einzigen, durchgängigen visuellen Stil für die GESAMTE Slideshow
+- Dieser Stil beschreibt: Bildstil/Medium (z.B. cinematic photo, warm film look), Farbpalette, Licht/Stimmung, wiederkehrende Hauptfigur (gleiches Aussehen, Kleidung), gleicher Schauplatz/Setting
+- Sehr konkret und detailliert, damit alle Bilder wie aus EINER Serie wirken
+- Auf Englisch
+
 Regeln für die Bild-Prompts:
 - JEDE Slide bekommt einen EIGENEN, individuellen Bild-Prompt (imagePrompt)
-- Der Bild-Prompt passt visuell und emotional genau zum Text dieser Slide
-- Die Bilder einer Slideshow sollen zusammen eine visuelle Geschichte erzählen, aber jedes Bild ist anders
-- Bild-Prompt auf Englisch, detailliert, cinematic, auf Viralität ausgelegt (9:16 Hochformat)
+- WICHTIG: Jeder imagePrompt MUSS exakt zum definierten visualStyle passen (gleiche Figur, gleiches Setting, gleiche Farben, gleiches Licht) — es soll wie dieselbe Bildserie aussehen
+- Es ändert sich nur die konkrete Szene/Handlung passend zum Text dieser Slide
+- Bild-Prompt auf Englisch, detailliert, cinematic, 9:16 Hochformat
 
 Antworte NUR mit folgendem JSON (kein Markdown, kein Extra-Text):
 {
-  "slides": [{ "text": "...", "label": "", "imagePrompt": "Detailed English image description for THIS slide, cinematic, viral, 9:16" }],
+  "slides": [{ "text": "...", "label": "", "imagePrompt": "Specific scene for THIS slide, consistent with the visualStyle, cinematic, 9:16" }],
+  "visualStyle": "ONE consistent visual style for ALL slides: medium, color palette, lighting, recurring character & setting",
   "hookSummary": "One sentence why this is viral"
 }`
 }
@@ -144,6 +153,7 @@ function normalizeResult(result) {
     .filter(s => s.text && String(s.text).trim())
   return {
     slides,
+    visualStyle: result?.visualStyle || '',
     hookSummary: result?.hookSummary || ''
   }
 }
@@ -216,9 +226,30 @@ async function withRetry(fn, { retries = 3, baseDelay = 5000 } = {}) {
   }
 }
 
-async function generateImageOpenAI(prompt, settings) {
+async function generateImageOpenAI(prompt, settings, referenceImages) {
   if (!settings.openaiKey) throw new Error('Bitte OpenAI API-Key in Einstellungen hinterlegen')
   const client = new OpenAI({ apiKey: settings.openaiKey })
+
+  // With reference images, use the edit endpoint so the new image matches the references
+  if (referenceImages && referenceImages.length) {
+    const files = await Promise.all(
+      referenceImages.slice(0, 4).map((b64, i) =>
+        toFile(Buffer.from(b64, 'base64'), `ref${i}.png`, { type: 'image/png' })
+      )
+    )
+    const res = await withRetry(() => client.images.edit({
+      model: 'gpt-image-1',
+      image: files,
+      prompt,
+      n: 1,
+      size: '1024x1536'
+    }))
+    const img = res.data[0]
+    if (img.b64_json) return img.b64_json
+    const resp = await fetch(img.url)
+    return Buffer.from(await resp.arrayBuffer()).toString('base64')
+  }
+
   const res = await withRetry(() => client.images.generate({
     model: 'gpt-image-1',
     prompt,
@@ -232,9 +263,27 @@ async function generateImageOpenAI(prompt, settings) {
   return Buffer.from(arrayBuffer).toString('base64')
 }
 
-async function generateImageGemini(prompt, settings) {
+async function generateImageGemini(prompt, settings, referenceImages) {
   if (!settings.geminiKey) throw new Error('Bitte Gemini API-Key in Einstellungen hinterlegen')
   const ai = new GoogleGenAI({ apiKey: settings.geminiKey })
+
+  // With reference images, use the image-capable generateContent model (nano banana)
+  if (referenceImages && referenceImages.length) {
+    const parts = [
+      { text: `${prompt}\n\nMatch the visual style, characters, colors and lighting of the provided reference image(s). Vertical 9:16 portrait format.` },
+      ...referenceImages.slice(0, 4).map(b64 => ({ inlineData: { mimeType: 'image/png', data: b64 } }))
+    ]
+    const res = await withRetry(() => ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: [{ role: 'user', parts }],
+      config: { responseModalities: ['Image'] }
+    }))
+    const outParts = res?.candidates?.[0]?.content?.parts || []
+    const imgPart = outParts.find(p => p.inlineData?.data)
+    if (!imgPart) throw new Error('Gemini hat kein Bild zurückgegeben (evtl. durch Sicherheitsfilter blockiert)')
+    return imgPart.inlineData.data
+  }
+
   const res = await withRetry(() => ai.models.generateImages({
     model: 'imagen-4.0-generate-001',
     prompt,
@@ -246,10 +295,10 @@ async function generateImageGemini(prompt, settings) {
   return bytes
 }
 
-export async function generateImage(prompt, settings, imageProvider = 'openai') {
+export async function generateImage(prompt, settings, imageProvider = 'openai', referenceImages = null) {
   try {
-    if (imageProvider === 'gemini') return await generateImageGemini(prompt, settings)
-    return await generateImageOpenAI(prompt, settings)
+    if (imageProvider === 'gemini') return await generateImageGemini(prompt, settings, referenceImages)
+    return await generateImageOpenAI(prompt, settings, referenceImages)
   } catch (e) {
     if (isRateLimit(e)) {
       throw new Error('Limit erreicht: Der Anbieter hat das Kontingent/Rate-Limit überschritten (429). Bitte kurz warten und erneut versuchen, oder dein Kontingent/Billing beim Anbieter prüfen.')

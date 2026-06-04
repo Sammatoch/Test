@@ -30,8 +30,14 @@ contextBridge.exposeInMainWorld('api', {
   },
   generate: {
     content: (params) => ipcRenderer.invoke('generate:content', params),
-    image: (prompt, imageProvider) => ipcRenderer.invoke('generate:image', prompt, imageProvider),
+    image: (prompt, imageProvider, referenceImages) => ipcRenderer.invoke('generate:image', prompt, imageProvider, referenceImages),
     tiktokText: (text) => ipcRenderer.invoke('generate:tiktokText', text)
+  },
+  references: {
+    selectFolder: () => ipcRenderer.invoke('dialog:selectFolder'),
+    listFolders: (baseDir) => ipcRenderer.invoke('references:listFolders', baseDir),
+    listImages: (folderPath) => ipcRenderer.invoke('references:listImages', folderPath),
+    readAsBase64: (filePath) => ipcRenderer.invoke('references:readAsBase64', filePath)
   },
   export: {
     post: (imageBase64, filename) => ipcRenderer.invoke('export:post', imageBase64, filename)
