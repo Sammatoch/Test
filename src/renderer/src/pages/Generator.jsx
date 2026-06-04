@@ -1002,12 +1002,26 @@ export default function Generator() {
                               )}
                             </div>
                             {expandedPromptIdx === idx ? (
-                              <p
-                                className="mt-1 text-tiktok-muted text-xs leading-snug whitespace-pre-wrap bg-black/40 rounded-md p-2 border border-tiktok-border select-text"
-                                onClick={e => e.stopPropagation()}
-                              >
-                                {isCoverSlide(idx) ? composeCoverSlidePrompt() : composeImagePrompt(slide)}
-                              </p>
+                              <div className="mt-1 space-y-1.5" onClick={e => e.stopPropagation()}>
+                                {!isCoverSlide(idx) && (
+                                  <div>
+                                    <p className="text-[10px] text-tiktok-muted uppercase tracking-wider mb-0.5">Szene bearbeiten</p>
+                                    <textarea
+                                      value={slide.imagePrompt || ''}
+                                      onChange={e => handleEditText(idx, e.target.value, 'imagePrompt')}
+                                      rows={Math.max(3, (slide.imagePrompt || '').length / 50)}
+                                      placeholder="Beschreibe die Szene für dieses Bild..."
+                                      className="w-full bg-black border border-tiktok-border rounded-md px-2 py-1.5 text-white text-xs leading-snug focus:outline-none focus:border-tiktok-cyan resize-none"
+                                    />
+                                  </div>
+                                )}
+                                <div>
+                                  <p className="text-[10px] text-tiktok-muted uppercase tracking-wider mb-0.5">Vollständiger Prompt (wird gesendet)</p>
+                                  <p className="text-tiktok-muted text-xs leading-snug whitespace-pre-wrap bg-black/40 rounded-md p-2 border border-tiktok-border select-text">
+                                    {isCoverSlide(idx) ? composeCoverSlidePrompt() : composeImagePrompt(slide)}
+                                  </p>
+                                </div>
+                              </div>
                             ) : (
                               slide.imagePrompt && (
                                 <p className="text-tiktok-muted text-xs italic leading-snug line-clamp-2">{slide.imagePrompt}</p>
