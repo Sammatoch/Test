@@ -280,7 +280,8 @@ async function generateImageOpenAI(prompt, settings, referenceImages) {
       image: files,
       prompt,
       n: 1,
-      size: '1024x1536'
+      size: '1024x1536',
+      quality: 'high'
     }))
     const img = res.data[0]
     if (img.b64_json) return img.b64_json
@@ -292,7 +293,8 @@ async function generateImageOpenAI(prompt, settings, referenceImages) {
     model: 'gpt-image-1',
     prompt,
     n: 1,
-    size: '1024x1536'
+    size: '1024x1536',
+    quality: 'high'
   }))
   const img = res.data[0]
   if (img.b64_json) return img.b64_json
