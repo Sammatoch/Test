@@ -107,13 +107,15 @@ export default function Generator() {
       setSettings(s || {})
       setBooks(b || [])
       setHooks(h || [])
+      // Values handed over from Viral Research must win over the restored session
+      const nav = location.state || {}
       // Restore last session if present, otherwise fall back to defaults
       const saved = loadSession()
       if (saved) {
         setBookTitle(saved.bookTitle ?? '')
         setNiche(saved.niche ?? '')
-        setSituation(saved.situation ?? '')
-        setHook(saved.hook ?? '')
+        setSituation(nav.situation ?? saved.situation ?? '')
+        setHook(nav.hook ?? saved.hook ?? '')
         setPerspective(saved.perspective ?? 'single')
         setLanguage(saved.language ?? 'de')
         setProvider(saved.provider ?? 'anthropic')
@@ -125,6 +127,8 @@ export default function Generator() {
         setLanguage(s.defaultLanguage || 'de')
         setProvider(s.defaultProvider || 'anthropic')
       }
+      if (nav.hook) setHook(nav.hook)
+      if (nav.situation) setSituation(nav.situation)
       hydrated.current = true
     })
   }, [])
