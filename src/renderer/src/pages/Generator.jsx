@@ -35,9 +35,28 @@ const inputClass =
 const selectClass =
   'w-full bg-black border border-tiktok-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-tiktok-red'
 
+const SESSION_KEY = 'tiktok-generator-session'
+
+function loadSession() {
+  try {
+    return JSON.parse(localStorage.getItem(SESSION_KEY))
+  } catch {
+    return null
+  }
+}
+
+function saveSession(data) {
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(data))
+  } catch {
+    /* ignore quota/serialization errors */
+  }
+}
+
 export default function Generator() {
   const location = useLocation()
   const canvasRef = useRef(null)
+  const hydrated = useRef(false)
 
   const [settings, setSettings] = useState({})
   const [books, setBooks] = useState([])
@@ -88,14 +107,33 @@ export default function Generator() {
       setSettings(s || {})
       setBooks(b || [])
       setHooks(h || [])
-      if (s) {
+      // Restore last session if present, otherwise fall back to defaults
+      const saved = loadSession()
+      if (saved) {
+        setBookTitle(saved.bookTitle ?? '')
+        setNiche(saved.niche ?? '')
+        setSituation(saved.situation ?? '')
+        setHook(saved.hook ?? '')
+        setPerspective(saved.perspective ?? 'single')
+        setLanguage(saved.language ?? 'de')
+        setProvider(saved.provider ?? 'anthropic')
+        setImageProvider(saved.imageProvider ?? 'openai')
+        if (saved.globalFontSize) setGlobalFontSize(saved.globalFontSize)
+      } else if (s) {
         setBookTitle(s.defaultBookTitle || '')
         setNiche(s.defaultNiche || '')
         setLanguage(s.defaultLanguage || 'de')
         setProvider(s.defaultProvider || 'anthropic')
       }
+      hydrated.current = true
     })
   }, [])
+
+  // Persist input fields so they survive an app restart
+  useEffect(() => {
+    if (!hydrated.current) return
+    saveSession({ bookTitle, niche, situation, hook, perspective, language, provider, imageProvider, globalFontSize })
+  }, [bookTitle, niche, situation, hook, perspective, language, provider, imageProvider, globalFontSize])
 
   useEffect(() => {
     if (location.state?.hook) setHook(location.state.hook)
