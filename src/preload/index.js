@@ -25,7 +25,8 @@ contextBridge.exposeInMainWorld('api', {
     get: () => ipcRenderer.invoke('images:get'),
     saveFromBase64: (base64, prompt) => ipcRenderer.invoke('images:saveFromBase64', base64, prompt),
     delete: (id) => ipcRenderer.invoke('images:delete', id),
-    getFilePath: (id) => ipcRenderer.invoke('images:getFilePath', id)
+    getFilePath: (id) => ipcRenderer.invoke('images:getFilePath', id),
+    readAsBase64: (id) => ipcRenderer.invoke('images:readAsBase64', id)
   },
   generate: {
     content: (params) => ipcRenderer.invoke('generate:content', params),

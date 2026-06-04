@@ -65,6 +65,11 @@ ipcMain.handle('images:get', () => store.images.get())
 ipcMain.handle('images:saveFromBase64', (_, base64, prompt) => store.images.saveFromBase64(base64, prompt))
 ipcMain.handle('images:delete', (_, id) => store.images.delete(id))
 ipcMain.handle('images:getFilePath', (_, id) => store.images.getFilePath(id))
+ipcMain.handle('images:readAsBase64', (_, id) => {
+  const fp = store.images.getFilePath(id)
+  if (!fp || !fs.existsSync(fp)) return null
+  return fs.readFileSync(fp).toString('base64')
+})
 
 // Generation
 ipcMain.handle('generate:content', async (_, params) => {
