@@ -114,11 +114,21 @@ export default function Generator() {
       const result = await window.api.generate.content({
         bookTitle, niche, situation, hook, perspective, language, provider
       })
-      const normalized = (result?.slides || [])
+      // Robustly locate the slides array regardless of returned shape
+      let raw = result?.slides ?? result
+      let slidesArray
+      if (Array.isArray(raw)) {
+        slidesArray = raw
+      } else if (raw && typeof raw === 'object') {
+        slidesArray = Object.values(raw)
+      } else {
+        slidesArray = []
+      }
+      const normalized = slidesArray
         .map(s => (typeof s === 'string' ? { text: s, label: '' } : { text: s?.text ?? '', label: s?.label ?? '' }))
-        .filter(s => s.text)
+        .filter(s => s.text && s.text.trim())
       if (!normalized.length) {
-        setError('Die KI hat keine verwertbaren Slides zurückgegeben. Bitte erneut versuchen.')
+        setError('Die KI hat keine verwertbaren Slides zurückgegeben. Antwort: ' + JSON.stringify(result).slice(0, 300))
         return
       }
       setSlides(normalized)
