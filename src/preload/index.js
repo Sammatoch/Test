@@ -35,5 +35,9 @@ contextBridge.exposeInMainWorld('api', {
   },
   export: {
     post: (imageBase64, filename) => ipcRenderer.invoke('export:post', imageBase64, filename)
+  },
+  viral: {
+    scrape: (query, maxResults) => ipcRenderer.invoke('viral:scrape', query, maxResults),
+    analyze: (videos) => ipcRenderer.invoke('viral:analyze', videos)
   }
 })

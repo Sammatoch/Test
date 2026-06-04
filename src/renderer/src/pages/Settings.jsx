@@ -51,6 +51,7 @@ export default function Settings() {
     anthropicKey: '',
     openaiKey: '',
     geminiKey: '',
+    apifyKey: '',
     defaultBookTitle: 'Mein Sauerteig Backbuch',
     defaultNiche: 'Backen / Sauerteig',
     defaultLanguage: 'de',
@@ -115,6 +116,16 @@ export default function Settings() {
                   value={form.geminiKey}
                   onChange={v => set('geminiKey', v)}
                   placeholder="AIza..."
+                />
+              </Field>
+              <Field
+                label="Apify API-Key (Viral Research)"
+                hint="Für TikTok Viral Research. Hole deinen Key auf console.apify.com"
+              >
+                <MaskedInput
+                  value={form.apifyKey}
+                  onChange={v => set('apifyKey', v)}
+                  placeholder="apify_api_..."
                 />
               </Field>
             </div>

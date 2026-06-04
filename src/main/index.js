@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import path from 'path'
 import fs from 'fs'
 import { initStore, store } from './store.js'
-import { generateContent, generateImage, applyTikTokIndexing } from './api.js'
+import { generateContent, generateImage, applyTikTokIndexing, scrapeViralTikToks, analyzeViralContent } from './api.js'
 
 let mainWindow
 
@@ -83,6 +83,17 @@ ipcMain.handle('generate:image', async (_, prompt, imageProvider) => {
 })
 
 ipcMain.handle('generate:tiktokText', (_, text) => applyTikTokIndexing(text))
+
+// Viral Research
+ipcMain.handle('viral:scrape', async (_, query, maxResults) => {
+  const settings = store.settings.get()
+  return scrapeViralTikToks(query, settings.apifyKey, maxResults)
+})
+
+ipcMain.handle('viral:analyze', async (_, videos) => {
+  const settings = store.settings.get()
+  return analyzeViralContent(videos, settings)
+})
 
 // Export
 ipcMain.handle('export:post', async (_, imageBase64, filename) => {

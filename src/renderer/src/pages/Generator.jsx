@@ -90,9 +90,8 @@ export default function Generator() {
   }, [])
 
   useEffect(() => {
-    if (location.state?.hook) {
-      setHook(location.state.hook)
-    }
+    if (location.state?.hook) setHook(location.state.hook)
+    if (location.state?.situation) setSituation(location.state.situation)
   }, [location.state])
 
   const showSuccess = (msg) => {

@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { Wand2, Library, Settings } from 'lucide-react'
+import { Wand2, Library, Settings, TrendingUp } from 'lucide-react'
 
 export default function Layout() {
   const navClass = ({ isActive }) =>
@@ -29,6 +29,10 @@ export default function Layout() {
           <NavLink to="/library" className={navClass}>
             <Library size={16} />
             Bibliothek
+          </NavLink>
+          <NavLink to="/viral" className={navClass}>
+            <TrendingUp size={16} />
+            Viral Research
           </NavLink>
           <NavLink to="/settings" className={navClass}>
             <Settings size={16} />

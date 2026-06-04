@@ -258,6 +258,65 @@ export async function generateImage(prompt, settings, imageProvider = 'openai') 
   }
 }
 
+export async function scrapeViralTikToks(searchQuery, apifyKey, maxResults = 20) {
+  if (!apifyKey) throw new Error('Bitte Apify API-Key in Einstellungen hinterlegen')
+  const actorId = 'clockworks~free-tiktok-scraper'
+  const url = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${apifyKey}&timeout=120`
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      searchSection: '/search/video',
+      maxRequestRetries: 3,
+      searchQueries: [searchQuery],
+      resultsPerPage: maxResults
+    })
+  })
+  if (!response.ok) {
+    const text = await response.text()
+    throw new Error(`Apify Fehler ${response.status}: ${text.slice(0, 300)}`)
+  }
+  return response.json()
+}
+
+export async function analyzeViralContent(videos, settings) {
+  if (!settings.anthropicKey) throw new Error('Bitte Anthropic API-Key für die Analyse hinterlegen')
+  const topVideos = [...videos]
+    .filter(v => v.text || v.description)
+    .sort((a, b) => (b.playCount || b.stats?.playCount || 0) - (a.playCount || a.stats?.playCount || 0))
+    .slice(0, 10)
+
+  const fmt = n => n >= 1000000 ? (n / 1000000).toFixed(1) + 'M' : n >= 1000 ? Math.round(n / 1000) + 'K' : String(n)
+  const videoSummaries = topVideos.map((v, i) => {
+    const text = (v.text || v.description || '').slice(0, 300)
+    const views = v.playCount || v.stats?.playCount || 0
+    const likes = v.diggCount || v.stats?.diggCount || 0
+    const hashtags = (v.hashtags || []).slice(0, 5).map(h => `#${h.name || h}`).join(' ')
+    return `Video ${i + 1} (${fmt(views)} Aufrufe, ${fmt(likes)} Likes):\n"${text}"\n${hashtags}`
+  }).join('\n\n')
+
+  const prompt = `Analysiere diese viralen TikTok-Videos und leite daraus eine Hook-Strategie für einen Buch-Slideshow-Post ab.
+
+VIRALE VIDEOS:
+${videoSummaries}
+
+Erstelle:
+1. Einen emotionalen Hook-Text (max. 2 Sätze, spezifisch und triggert Neugier/Schmerz/Wunsch)
+2. Eine kurze Situationsbeschreibung die den Hook motiviert (1-2 Sätze)
+3. Kurze Analyse warum diese Videos viral gehen (1-2 Sätze)
+
+Antworte NUR mit diesem JSON:
+{"hook":"...","situation":"...","analysis":"..."}`
+
+  const client = new Anthropic({ apiKey: settings.anthropicKey })
+  const msg = await client.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 512,
+    messages: [{ role: 'user', content: prompt }]
+  })
+  return parseAIResponse(msg.content[0]?.text || '')
+}
+
 export function applyTikTokIndexing(text) {
   const invisible = ['​', '‌', '‍']
   let result = ''
