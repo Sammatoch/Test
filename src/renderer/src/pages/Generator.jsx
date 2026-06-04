@@ -37,6 +37,7 @@ const selectClass =
 
 const SESSION_KEY = 'tiktok-generator-session'
 const VIRAL_SESSION_KEY = 'tiktok-viral-session'
+const DEFAULT_STYLE = 'painterly style'
 
 // Aggregate hashtags from the last Apify viral search, ranked by frequency
 function loadViralHashtags() {
@@ -93,6 +94,7 @@ export default function Generator() {
   const [perspective, setPerspective] = useState('single')
   const [language, setLanguage] = useState('de')
   const [provider, setProvider] = useState('anthropic')
+  const [stylePreference, setStylePreference] = useState(DEFAULT_STYLE)
 
   const [slides, setSlides] = useState([])
   const [hookSummary, setHookSummary] = useState('')
@@ -151,6 +153,7 @@ export default function Generator() {
         setPerspective(saved.perspective ?? 'single')
         setLanguage(saved.language ?? 'de')
         setProvider(saved.provider ?? 'anthropic')
+        setStylePreference(saved.stylePreference ?? DEFAULT_STYLE)
         setImageProvider(saved.imageProvider ?? 'openai')
         if (saved.globalFontSize) setGlobalFontSize(saved.globalFontSize)
         if (typeof saved.useCoverLastSlide === 'boolean') setUseCoverLastSlide(saved.useCoverLastSlide)
@@ -187,12 +190,12 @@ export default function Generator() {
   useEffect(() => {
     if (!hydrated.current) return
     saveSession({
-      bookTitle, niche, situation, hook, perspective, language, provider, imageProvider, globalFontSize,
+      bookTitle, niche, situation, hook, perspective, language, provider, stylePreference, imageProvider, globalFontSize,
       useCoverLastSlide, useIndexing,
       // Text only — strip nothing, slides hold only text/label/imagePrompt
       slides, hookSummary, visualStyle, textSettings
     })
-  }, [bookTitle, niche, situation, hook, perspective, language, provider, imageProvider, globalFontSize, useCoverLastSlide, useIndexing, slides, hookSummary, visualStyle, textSettings])
+  }, [bookTitle, niche, situation, hook, perspective, language, provider, stylePreference, imageProvider, globalFontSize, useCoverLastSlide, useIndexing, slides, hookSummary, visualStyle, textSettings])
 
   useEffect(() => {
     if (location.state?.hook) setHook(location.state.hook)
@@ -254,11 +257,14 @@ export default function Generator() {
     const bookNote = slideShowsBook(slide)
       ? ` IMPORTANT: the book visible in the scene MUST be the exact book from the provided reference image(s) — same cover artwork, title and design. Do NOT invent a different book.`
       : ''
+    // Short art-style tag prepended for ALL providers (kept short so it doesn't trip
+    // Imagen safety filters). Ensures the chosen style applies even on Gemini.
+    const styleTag = stylePreference ? `${stylePreference}. ` : ''
     // Gemini Imagen only takes plain text prompts — the AI already writes consistent
-    // prompts per slide, so no prefix needed. The visual style prefix is only used
-    // for OpenAI where it improves anchor-based consistency.
-    if (imageProvider === 'gemini' || !visualStyle) return scene + bookNote
-    return `Consistent visual style for the entire image series: ${visualStyle}. Scene for this slide: ${scene}. Vertical 9:16 portrait, cinematic.${bookNote}`
+    // prompts per slide. The full visualStyle prefix is only used for OpenAI where it
+    // improves anchor-based consistency.
+    if (imageProvider === 'gemini' || !visualStyle) return styleTag + scene + bookNote
+    return `${styleTag}Consistent visual style for the entire image series: ${visualStyle}. Scene for this slide: ${scene}. Vertical 9:16 portrait, cinematic.${bookNote}`
   }
 
   const composeCoverSlidePrompt = () => {
@@ -314,7 +320,7 @@ export default function Generator() {
     setCurrentSlide(0)
     try {
       const result = await window.api.generate.content({
-        bookTitle, niche, situation, hook, perspective, language, provider
+        bookTitle, niche, situation, hook, perspective, language, provider, stylePreference
       })
       // Robustly locate the slides array regardless of returned shape
       let raw = result?.slides ?? result
@@ -716,6 +722,24 @@ export default function Generator() {
             </select>
           </InputRow>
         </div>
+
+        <InputRow label="Bild-Stil (gesamte Slideshow)">
+          <input
+            value={stylePreference}
+            onChange={e => setStylePreference(e.target.value)}
+            placeholder="z.B. painterly style, cinematic photo, anime..."
+            className={inputClass}
+            list="style-presets"
+          />
+          <datalist id="style-presets">
+            <option value="painterly style" />
+            <option value="cinematic photo, warm film look" />
+            <option value="watercolor illustration" />
+            <option value="3D Pixar-style render" />
+            <option value="anime illustration" />
+            <option value="vintage film photography" />
+          </datalist>
+        </InputRow>
 
         <button
           onClick={handleGenerate}

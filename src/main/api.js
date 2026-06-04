@@ -52,7 +52,7 @@ const GEMINI_SCHEMA = {
 }
 
 function buildPrompt(params) {
-  const { bookTitle, niche, situation, hook, perspective, language } = params
+  const { bookTitle, niche, situation, hook, perspective, language, stylePreference } = params
   const languageLabel = language === 'de' ? 'Deutsch' : language === 'en' ? 'English' : language === 'es' ? 'Español' : language
   const perspectiveLabel =
     perspective === 'alternating'
@@ -91,7 +91,7 @@ WICHTIG: Buchtitel immer in der Originalsprache: "${bookTitle}"
 ${textRules}
 
 Regeln für den durchgängigen Bild-Stil (visualStyle):
-- Definiere EINEN einzigen, durchgängigen visuellen Stil für die GESAMTE Slideshow
+- Definiere EINEN einzigen, durchgängigen visuellen Stil für die GESAMTE Slideshow${stylePreference ? `\n- PFLICHT: Der Kunst-/Bildstil MUSS sein: "${stylePreference}". Baue den gesamten visualStyle um diesen Stil herum auf und erwähne ihn explizit.` : ''}
 - Dieser Stil beschreibt: Bildstil/Medium (z.B. cinematic photo, warm film look), Farbpalette, Licht/Stimmung, wiederkehrende Hauptfigur (gleiches Aussehen, Kleidung), gleicher Schauplatz/Setting
 - Sehr konkret und detailliert, damit alle Bilder wie aus EINER Serie wirken
 - Auf Englisch
