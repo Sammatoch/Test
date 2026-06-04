@@ -1,0 +1,104 @@
+import Anthropic from '@anthropic-ai/sdk'
+import OpenAI from 'openai'
+import { GoogleGenerativeAI } from '@google/generative-ai'
+
+function buildPrompt(params) {
+  const { bookTitle, niche, situation, hook, perspective, language } = params
+  const languageLabel = language === 'de' ? 'Deutsch' : language === 'en' ? 'English' : language === 'es' ? 'Español' : language
+  const perspectiveLabel =
+    perspective === 'alternating'
+      ? 'Wechselnde Perspektiven (Dialog zwischen zwei Personen)'
+      : 'Eine Perspektive (innerer Monolog)'
+
+  return `Du bist ein viraler TikTok Content Creator für Sachbücher.
+Erstelle einen emotionalen TikTok-Slideshow-Post für das Buch "${bookTitle}" in der Nische "${niche}".
+
+Situation: "${situation}"
+Hook: "${hook}"
+Perspektive: ${perspectiveLabel}
+Ausgabe-Sprache: ${languageLabel}
+WICHTIG: Buchtitel immer in der Originalsprache: "${bookTitle}"
+
+Regeln für den Text:
+- 6-10 kurze Slides, jede max. 2-3 Zeilen
+- Sehr kurze, prägnante Sätze die emotional triggern
+- Dialoge erzeugen starke Spannung
+- Letzter Slide: Call-to-Action mit Buchtitel
+- Text muss zum Weiterklicken zwingen
+
+Antworte NUR mit folgendem JSON (kein Markdown, kein Extra-Text):
+{
+  "slides": [{ "text": "...", "label": "" }],
+  "imagePrompt": "Detailed English description for DALL-E 3, cinematic, viral aesthetic",
+  "hookSummary": "One sentence why this is viral"
+}`
+}
+
+function parseAIResponse(text) {
+  let cleaned = text.trim()
+  cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '')
+  return JSON.parse(cleaned)
+}
+
+export async function generateContent(params, settings) {
+  const { provider } = params
+  const prompt = buildPrompt(params)
+
+  if (provider === 'anthropic') {
+    if (!settings.anthropicKey) throw new Error('Bitte Anthropic API-Key in Einstellungen hinterlegen')
+    const client = new Anthropic({ apiKey: settings.anthropicKey })
+    const msg = await client.messages.create({
+      model: 'claude-opus-4-5',
+      max_tokens: 2048,
+      messages: [{ role: 'user', content: prompt }]
+    })
+    return parseAIResponse(msg.content[0].text)
+  }
+
+  if (provider === 'openai') {
+    if (!settings.openaiKey) throw new Error('Bitte OpenAI API-Key in Einstellungen hinterlegen')
+    const client = new OpenAI({ apiKey: settings.openaiKey })
+    const res = await client.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 2048
+    })
+    return parseAIResponse(res.choices[0].message.content)
+  }
+
+  if (provider === 'gemini') {
+    if (!settings.geminiKey) throw new Error('Bitte Gemini API-Key in Einstellungen hinterlegen')
+    const genAI = new GoogleGenerativeAI(settings.geminiKey)
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
+    const result = await model.generateContent(prompt)
+    const text = result.response.text()
+    return parseAIResponse(text)
+  }
+
+  throw new Error(`Unbekannter Provider: ${provider}`)
+}
+
+export async function generateImage(prompt, settings) {
+  if (!settings.openaiKey) throw new Error('Bitte OpenAI API-Key in Einstellungen hinterlegen (für DALL-E)')
+  const client = new OpenAI({ apiKey: settings.openaiKey })
+  const res = await client.images.generate({
+    model: 'dall-e-3',
+    prompt,
+    n: 1,
+    size: '1024x1792',
+    response_format: 'b64_json'
+  })
+  return res.data[0].b64_json
+}
+
+export function applyTikTokIndexing(text) {
+  const invisible = ['​', '‌', '‍']
+  let result = ''
+  for (let i = 0; i < text.length; i++) {
+    result += text[i]
+    if (text[i] !== ' ' && text[i] !== '\n' && Math.random() < 0.12) {
+      result += invisible[Math.floor(Math.random() * invisible.length)]
+    }
+  }
+  return result
+}

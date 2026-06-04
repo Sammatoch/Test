@@ -1,0 +1,29 @@
+{
+  "name": "tiktok-content-generator",
+  "version": "1.0.0",
+  "description": "TikTok Content Generator for Sauerteig Backbuch",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "start": "electron ."
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@google/generative-ai": "^0.24.0",
+    "openai": "^4.97.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "electron": "^35.2.1",
+    "electron-vite": "^3.1.0",
+    "postcss": "^8.4.49",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^7.5.3",
+    "tailwindcss": "^3.4.17",
+    "lucide-react": "^0.511.0"
+  }
+}
