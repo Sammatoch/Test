@@ -116,6 +116,10 @@ export default function Generator() {
       })
       // Robustly locate the slides array regardless of returned shape
       let raw = result?.slides ?? result
+      // The model sometimes returns slides as a JSON-encoded string (double encoding)
+      if (typeof raw === 'string') {
+        try { raw = JSON.parse(raw) } catch { /* leave as-is */ }
+      }
       let slidesArray
       if (Array.isArray(raw)) {
         slidesArray = raw
