@@ -121,6 +121,18 @@ export default function Generator() {
         setProvider(saved.provider ?? 'anthropic')
         setImageProvider(saved.imageProvider ?? 'openai')
         if (saved.globalFontSize) setGlobalFontSize(saved.globalFontSize)
+        // Restore generated text (images are intentionally not persisted)
+        if (Array.isArray(saved.slides) && saved.slides.length) {
+          setSlides(saved.slides)
+          setSlideImages(new Array(saved.slides.length).fill(null))
+          setTextSettings(
+            Array.isArray(saved.textSettings) && saved.textSettings.length === saved.slides.length
+              ? saved.textSettings
+              : saved.slides.map(() => ({ offsetX: 0, offsetY: 0 }))
+          )
+          setHookSummary(saved.hookSummary ?? '')
+          setVisualStyle(saved.visualStyle ?? '')
+        }
       } else if (s) {
         setBookTitle(s.defaultBookTitle || '')
         setNiche(s.defaultNiche || '')
@@ -133,11 +145,15 @@ export default function Generator() {
     })
   }, [])
 
-  // Persist input fields so they survive an app restart
+  // Persist input fields + generated text (never images) so they survive an app restart
   useEffect(() => {
     if (!hydrated.current) return
-    saveSession({ bookTitle, niche, situation, hook, perspective, language, provider, imageProvider, globalFontSize })
-  }, [bookTitle, niche, situation, hook, perspective, language, provider, imageProvider, globalFontSize])
+    saveSession({
+      bookTitle, niche, situation, hook, perspective, language, provider, imageProvider, globalFontSize,
+      // Text only — strip nothing, slides hold only text/label/imagePrompt
+      slides, hookSummary, visualStyle, textSettings
+    })
+  }, [bookTitle, niche, situation, hook, perspective, language, provider, imageProvider, globalFontSize, slides, hookSummary, visualStyle, textSettings])
 
   useEffect(() => {
     if (location.state?.hook) setHook(location.state.hook)
