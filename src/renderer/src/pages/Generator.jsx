@@ -260,14 +260,10 @@ export default function Generator() {
     const bookNote = slideShowsBook(slide)
       ? ` IMPORTANT: the book visible in the scene MUST be the exact book from the provided reference image(s) — same cover artwork, title and design. Do NOT invent a different book.`
       : ''
-    // Short art-style tag prepended for ALL providers (kept short so it doesn't trip
-    // Imagen safety filters). Ensures the chosen style applies even on Gemini.
-    const styleTag = stylePreference ? `${stylePreference}. ` : ''
-    // Gemini Imagen only takes plain text prompts — the AI already writes consistent
-    // prompts per slide. The full visualStyle prefix is only used for OpenAI where it
-    // improves anchor-based consistency.
-    if (imageProvider === 'gemini' || !visualStyle) return styleTag + scene + bookNote + noText
-    return `${styleTag}Consistent visual style for the entire image series: ${visualStyle}. Scene for this slide: ${scene}. Vertical 9:16 portrait, cinematic.${bookNote}${noText}`
+    const styleLabel = stylePreference || 'painterly'
+    const prefix = `Create a realistic ${styleLabel}-style vertical 9:16 TikTok slideshow. `
+    if (imageProvider === 'gemini' || !visualStyle) return prefix + scene + bookNote + noText
+    return `${prefix}Consistent visual style for the entire image series: ${visualStyle}. Scene for this slide: ${scene}. Vertical 9:16 portrait, cinematic.${bookNote}${noText}`
   }
 
   const composeCoverSlidePrompt = () => {
@@ -275,9 +271,11 @@ export default function Generator() {
     const source = hasBack
       ? `The provided images show the FRONT and BACK cover of the same book.`
       : `The provided image shows the book cover.`
+    const styleLabel = stylePreference || 'painterly'
+    const prefix = `Create a realistic ${styleLabel}-style vertical 9:16 TikTok slideshow. `
     const scene = `${source} Render it as a real, physical printed book placed naturally in a cozy scene — for example lying on a rustic wooden kitchen table next to fresh bread, or held in someone's hands. Keep the cover artwork, title and design exactly as in the reference image(s), clearly visible and readable as the main subject. Warm, inviting cinematic lighting, photorealistic, vertical 9:16 portrait.`
-    if (visualStyle) return `Overall visual style of the series: ${visualStyle}. ${scene}`
-    return scene
+    if (visualStyle) return `${prefix}Overall visual style of the series: ${visualStyle}. ${scene}`
+    return prefix + scene
   }
 
   const handleSelectRefFolder = async (folderPath) => {
