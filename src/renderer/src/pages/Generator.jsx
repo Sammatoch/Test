@@ -114,9 +114,16 @@ export default function Generator() {
       const result = await window.api.generate.content({
         bookTitle, niche, situation, hook, perspective, language, provider
       })
-      setSlides(result.slides || [])
-      setImagePrompt(result.imagePrompt || '')
-      setHookSummary(result.hookSummary || '')
+      const normalized = (result?.slides || [])
+        .map(s => (typeof s === 'string' ? { text: s, label: '' } : { text: s?.text ?? '', label: s?.label ?? '' }))
+        .filter(s => s.text)
+      if (!normalized.length) {
+        setError('Die KI hat keine verwertbaren Slides zurückgegeben. Bitte erneut versuchen.')
+        return
+      }
+      setSlides(normalized)
+      setImagePrompt(result?.imagePrompt || '')
+      setHookSummary(result?.hookSummary || '')
     } catch (e) {
       setError(e.message)
     } finally {
@@ -527,7 +534,7 @@ export default function Generator() {
             className="w-full flex items-center justify-center gap-2 py-2 bg-tiktok-red hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium rounded-lg transition-colors"
           >
             {generatingImage ? <Loader2 size={14} className="animate-spin" /> : <Image size={14} />}
-            {generatingImage ? 'Bild wird generiert...' : 'Bild generieren (DALL-E 3)'}
+            {generatingImage ? 'Bild wird generiert...' : 'Bild generieren'}
           </button>
 
           {imageBase64 && (
