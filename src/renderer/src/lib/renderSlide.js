@@ -119,22 +119,6 @@ export function drawSlide(ctx, {
 
     drawTextBlock(ctx, text2, { fontSize, offsetX: offsetX2, offsetY: offsetY2, maxWidth })
   }
-
-  if (total > 1) {
-    const dotR = 18
-    const dotSpacing = 52
-    const dotsTotal = total * dotSpacing - (dotSpacing - dotR * 2)
-    const dotsStartX = CANVAS_W / 2 - dotsTotal / 2 + dotR
-    const dotsY = CANVAS_H - 100
-
-    for (let i = 0; i < total; i++) {
-      ctx.beginPath()
-      ctx.arc(dotsStartX + i * dotSpacing, dotsY, dotR, 0, Math.PI * 2)
-      ctx.fillStyle = i === index ? '#fe2c55' : 'rgba(255,255,255,0.4)'
-      ctx.fill()
-    }
-  }
-
 }
 
 export function loadImage(base64) {
