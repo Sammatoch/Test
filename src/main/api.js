@@ -141,7 +141,7 @@ export async function generateImage(prompt, settings) {
   if (!settings.openaiKey) throw new Error('Bitte OpenAI API-Key in Einstellungen hinterlegen (für DALL-E)')
   const client = new OpenAI({ apiKey: settings.openaiKey })
   const res = await client.images.generate({
-    model: 'dall-e-3',
+    model: 'gpt-image-1',
     prompt,
     n: 1,
     size: '1024x1792'
