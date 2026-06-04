@@ -117,6 +117,8 @@ export default function Generator() {
   const [copiedIdx, setCopiedIdx] = useState(null)
   const [editingIdx, setEditingIdx] = useState(null)
   const [editingIdx2, setEditingIdx2] = useState(null)
+  const [expandedPromptIdx, setExpandedPromptIdx] = useState(null)
+  const [copiedPromptIdx, setCopiedPromptIdx] = useState(null)
   const [globalFontSize, setGlobalFontSize] = useState(DEFAULT_FONT_SIZE)
   const [textSettings, setTextSettings] = useState([])
 
@@ -384,6 +386,13 @@ export default function Generator() {
     await navigator.clipboard.writeText(text)
     setCopiedIdx(idx)
     setTimeout(() => setCopiedIdx(null), 1500)
+  }
+
+  const handleCopyPrompt = async (idx) => {
+    const prompt = isCoverSlide(idx) ? composeCoverSlidePrompt() : composeImagePrompt(slides[idx])
+    await navigator.clipboard.writeText(prompt)
+    setCopiedPromptIdx(idx)
+    setTimeout(() => setCopiedPromptIdx(null), 1500)
   }
 
   const handleEditText = (idx, value, field = 'text') => {
@@ -968,8 +977,45 @@ export default function Generator() {
                             <BookOpen size={10} /> Buch aus Referenz
                           </span>
                         )}
-                        {slide.imagePrompt && (
-                          <p className="text-tiktok-muted text-xs italic leading-snug line-clamp-2">{slide.imagePrompt}</p>
+                        {(slide.imagePrompt || isCoverSlide(idx)) && (
+                          <div className="mb-1">
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={e => { e.stopPropagation(); setExpandedPromptIdx(expandedPromptIdx === idx ? null : idx) }}
+                                className="inline-flex items-center gap-1 text-tiktok-muted hover:text-white text-[11px] font-medium transition-colors"
+                                title="Bild-Prompt anzeigen"
+                              >
+                                <ChevronRight
+                                  size={12}
+                                  className={`transition-transform ${expandedPromptIdx === idx ? 'rotate-90' : ''}`}
+                                />
+                                Prompt
+                              </button>
+                              {expandedPromptIdx === idx && (
+                                <button
+                                  onClick={e => { e.stopPropagation(); handleCopyPrompt(idx) }}
+                                  className="inline-flex items-center gap-1 text-tiktok-muted hover:text-tiktok-cyan text-[11px] font-medium transition-colors"
+                                  title="Prompt kopieren"
+                                >
+                                  {copiedPromptIdx === idx
+                                    ? <><Check size={11} className="text-tiktok-cyan" /> Kopiert</>
+                                    : <><Copy size={11} /> Kopieren</>}
+                                </button>
+                              )}
+                            </div>
+                            {expandedPromptIdx === idx ? (
+                              <p
+                                className="mt-1 text-tiktok-muted text-xs leading-snug whitespace-pre-wrap bg-black/40 rounded-md p-2 border border-tiktok-border select-text"
+                                onClick={e => e.stopPropagation()}
+                              >
+                                {isCoverSlide(idx) ? composeCoverSlidePrompt() : composeImagePrompt(slide)}
+                              </p>
+                            ) : (
+                              slide.imagePrompt && (
+                                <p className="text-tiktok-muted text-xs italic leading-snug line-clamp-2">{slide.imagePrompt}</p>
+                              )
+                            )}
+                          </div>
                         )}
                         <button
                           onClick={e => { e.stopPropagation(); handleGenerateSlideImage(idx) }}
