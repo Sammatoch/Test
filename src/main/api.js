@@ -196,15 +196,35 @@ export async function generateContent(params, settings) {
   throw new Error(`Unbekannter Provider: ${provider}`)
 }
 
+function isRateLimit(e) {
+  const status = e?.status ?? e?.code ?? e?.error?.code
+  const msg = String(e?.message || e?.error?.message || e || '')
+  return status === 429 || /\b429\b|RESOURCE_EXHAUSTED|rate.?limit|too many requests/i.test(msg)
+}
+
+async function withRetry(fn, { retries = 3, baseDelay = 5000 } = {}) {
+  let attempt = 0
+  for (;;) {
+    try {
+      return await fn()
+    } catch (e) {
+      if (!isRateLimit(e) || attempt >= retries) throw e
+      const delay = baseDelay * Math.pow(2, attempt)
+      await new Promise(r => setTimeout(r, delay))
+      attempt++
+    }
+  }
+}
+
 async function generateImageOpenAI(prompt, settings) {
   if (!settings.openaiKey) throw new Error('Bitte OpenAI API-Key in Einstellungen hinterlegen')
   const client = new OpenAI({ apiKey: settings.openaiKey })
-  const res = await client.images.generate({
+  const res = await withRetry(() => client.images.generate({
     model: 'gpt-image-1',
     prompt,
     n: 1,
     size: '1024x1536'
-  })
+  }))
   const img = res.data[0]
   if (img.b64_json) return img.b64_json
   const resp = await fetch(img.url)
@@ -215,11 +235,11 @@ async function generateImageOpenAI(prompt, settings) {
 async function generateImageGemini(prompt, settings) {
   if (!settings.geminiKey) throw new Error('Bitte Gemini API-Key in Einstellungen hinterlegen')
   const ai = new GoogleGenAI({ apiKey: settings.geminiKey })
-  const res = await ai.models.generateImages({
+  const res = await withRetry(() => ai.models.generateImages({
     model: 'imagen-4.0-generate-001',
     prompt,
     config: { numberOfImages: 1, aspectRatio: '9:16' }
-  })
+  }))
   const generated = res?.generatedImages?.[0]
   const bytes = generated?.image?.imageBytes
   if (!bytes) throw new Error('Gemini hat kein Bild zurückgegeben (evtl. durch Sicherheitsfilter blockiert)')
@@ -227,8 +247,15 @@ async function generateImageGemini(prompt, settings) {
 }
 
 export async function generateImage(prompt, settings, imageProvider = 'openai') {
-  if (imageProvider === 'gemini') return generateImageGemini(prompt, settings)
-  return generateImageOpenAI(prompt, settings)
+  try {
+    if (imageProvider === 'gemini') return await generateImageGemini(prompt, settings)
+    return await generateImageOpenAI(prompt, settings)
+  } catch (e) {
+    if (isRateLimit(e)) {
+      throw new Error('Limit erreicht: Der Anbieter hat das Kontingent/Rate-Limit überschritten (429). Bitte kurz warten und erneut versuchen, oder dein Kontingent/Billing beim Anbieter prüfen.')
+    }
+    throw e
+  }
 }
 
 export function applyTikTokIndexing(text) {

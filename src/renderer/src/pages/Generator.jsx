@@ -182,6 +182,10 @@ export default function Generator() {
         images[i] = b64
         setSlideImages([...images])
         setImageProgress({ done: i + 1, total: slides.length })
+        // Small pause between requests to avoid hitting provider rate limits
+        if (i < slides.length - 1) {
+          await new Promise(r => setTimeout(r, 1500))
+        }
       }
     } catch (e) {
       setError(`Bild ${(imageProgress?.done ?? 0) + 1}: ${e.message}`)
