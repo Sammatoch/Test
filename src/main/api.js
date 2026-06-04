@@ -275,18 +275,43 @@ async function generateImageOpenAI(prompt, settings, referenceImages) {
   return Buffer.from(arrayBuffer).toString('base64')
 }
 
+// Google enforces a per-model daily quota (e.g. 70/day on paid tier 1). Each model
+// has its OWN bucket, so on a daily-quota error we fall back to the next model.
+const IMAGEN_MODELS = [
+  'imagen-4.0-generate-001',
+  'imagen-4.0-fast-generate-001',
+  'imagen-3.0-generate-002'
+]
+
+function isDailyQuota(e) {
+  const msg = String(e?.error?.message || e?.message || e || '')
+  return /per_day|exceeded your current quota|quota exceeded/i.test(msg)
+}
+
 async function generateImageGemini(prompt, settings) {
   if (!settings.geminiKey) throw new Error('Bitte Gemini API-Key in Einstellungen hinterlegen')
   const ai = new GoogleGenAI({ apiKey: settings.geminiKey })
-  const res = await withRetry(() => ai.models.generateImages({
-    model: 'imagen-4.0-generate-001',
-    prompt,
-    config: { numberOfImages: 1, aspectRatio: '9:16' }
-  }))
-  const generated = res?.generatedImages?.[0]
-  const bytes = generated?.image?.imageBytes || generated?.image?.bytesBase64Encoded
-  if (!bytes) throw new Error('Gemini hat kein Bild zurückgegeben (evtl. durch Sicherheitsfilter blockiert)')
-  return bytes
+  let lastErr
+  for (let i = 0; i < IMAGEN_MODELS.length; i++) {
+    const model = IMAGEN_MODELS[i]
+    try {
+      const res = await withRetry(() => ai.models.generateImages({
+        model,
+        prompt,
+        config: { numberOfImages: 1, aspectRatio: '9:16' }
+      }))
+      const generated = res?.generatedImages?.[0]
+      const bytes = generated?.image?.imageBytes || generated?.image?.bytesBase64Encoded
+      if (!bytes) throw new Error('Gemini hat kein Bild zurückgegeben (evtl. durch Sicherheitsfilter blockiert)')
+      return bytes
+    } catch (e) {
+      lastErr = e
+      // Only try the next model if THIS model's daily quota is exhausted
+      if (isDailyQuota(e) && i < IMAGEN_MODELS.length - 1) continue
+      throw e
+    }
+  }
+  throw lastErr
 }
 
 export async function generateImage(prompt, settings, imageProvider = 'openai', referenceImages = null) {
@@ -296,7 +321,7 @@ export async function generateImage(prompt, settings, imageProvider = 'openai', 
   } catch (e) {
     if (isRateLimit(e)) {
       const hint = imageProvider === 'gemini'
-        ? 'Wichtig: Imagen (Gemini) hat ein EIGENES Tages-/Minuten-Kontingent, das unabhängig von deinem Guthaben ist. Imagen ist nur im kostenpflichtigen Tier verfügbar — prüfe in Google AI Studio / Cloud Console, ob Imagen für deinen Tarif aktiviert ist und freies Kontingent hat. (Guthaben bei OpenAI hilft hier nicht.)'
+        ? 'Das ist KEIN Geld-Problem: Google begrenzt Imagen auf ein TAGES-Kontingent pro Modell (z.B. 70 Bilder/Tag im Paid Tier 1). Es wird automatisch auf weitere Imagen-Modelle ausgewichen — auch deren Tageslimit ist nun erreicht. Lösung: bis zum Reset (Mitternacht US-Pazifik) warten, in der Google Cloud Console eine Quota-Erhöhung beantragen, ODER zum Bild-Provider „OpenAI" wechseln.'
         : 'Wichtig: Ein OpenAI-429 bedeutet oft „insufficient_quota" (Projekt-/Usage-Limit), nicht zwingend zu viele Anfragen. Prüfe Billing und die Usage-Limits deines Projekts im OpenAI-Dashboard.'
       throw new Error(`Kontingent/Limit erreicht (429). ${hint}\n\nOriginalmeldung des Anbieters: ${errorDetail(e)}`)
     }
