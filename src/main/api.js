@@ -266,8 +266,7 @@ export async function scrapeViralTikToks(searchQuery, apifyKey, maxResults = 20)
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      searchSection: '/search/video',
-      maxRequestRetries: 3,
+      searchSection: '/video',
       searchQueries: [searchQuery],
       resultsPerPage: maxResults
     })
