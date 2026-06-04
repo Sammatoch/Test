@@ -314,9 +314,37 @@ async function generateImageGemini(prompt, settings) {
   throw lastErr
 }
 
+// Gemini 2.5 Flash Image ("Nano Banana") supports image INPUT + editing, unlike Imagen.
+// We use it when we have reference images (e.g. embed the book cover naturally into a scene).
+async function generateImageGeminiEdit(prompt, settings, referenceImages) {
+  if (!settings.geminiKey) throw new Error('Bitte Gemini API-Key in Einstellungen hinterlegen')
+  const ai = new GoogleGenAI({ apiKey: settings.geminiKey })
+  const contents = [
+    { text: prompt },
+    ...referenceImages.slice(0, 4).map(b64 => ({
+      inlineData: { mimeType: 'image/png', data: b64 }
+    }))
+  ]
+  const res = await withRetry(() => ai.models.generateContent({
+    model: 'gemini-2.5-flash-image',
+    contents
+  }))
+  const parts = res?.candidates?.[0]?.content?.parts || []
+  for (const part of parts) {
+    if (part.inlineData?.data) return part.inlineData.data
+  }
+  throw new Error('Gemini hat kein Bild zurückgegeben (evtl. durch Sicherheitsfilter blockiert)')
+}
+
 export async function generateImage(prompt, settings, imageProvider = 'openai', referenceImages = null) {
   try {
-    if (imageProvider === 'gemini') return await generateImageGemini(prompt, settings)
+    if (imageProvider === 'gemini') {
+      // With a reference image, use the editing-capable model so the book is woven into the scene
+      if (referenceImages && referenceImages.length) {
+        return await generateImageGeminiEdit(prompt, settings, referenceImages)
+      }
+      return await generateImageGemini(prompt, settings)
+    }
     return await generateImageOpenAI(prompt, settings, referenceImages)
   } catch (e) {
     if (isRateLimit(e)) {

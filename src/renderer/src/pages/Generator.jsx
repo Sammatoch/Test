@@ -205,8 +205,8 @@ export default function Generator() {
   }
 
   const composeCoverSlidePrompt = () => {
-    const scene = `A physical copy of the book "${bookTitle}" lying naturally in the scene — placed on a wooden surface or held in hands — the book cover clearly visible and recognizable as the main subject, warm cinematic lighting, 9:16 portrait`
-    if (visualStyle) return `Consistent with overall visual style: ${visualStyle}. Final slide scene: ${scene}`
+    const scene = `Take the book cover shown in the provided image and render it as a real, physical printed book placed naturally in a cozy scene — for example lying on a rustic wooden kitchen table next to fresh bread, or held in someone's hands. Keep the cover artwork, title and design exactly as in the reference image, clearly visible and readable as the main subject. Warm, inviting cinematic lighting, photorealistic, vertical 9:16 portrait.`
+    if (visualStyle) return `Overall visual style of the series: ${visualStyle}. ${scene}`
     return scene
   }
 
@@ -332,16 +332,12 @@ export default function Generator() {
       const images = [...slideImages]
       let anchor = null
       for (let i = 0; i < slides.length; i++) {
-        // Last slide: with OpenAI generate a natural scene with the book in it;
-        // Gemini doesn't support reference images so use the cover directly.
+        // Last slide: generate a natural scene with the book woven in, using the cover
+        // as a reference image (OpenAI via images.edit, Gemini via gemini-2.5-flash-image).
         if (isCoverSlide(i)) {
-          if (imageProvider === 'openai') {
-            const prompt = composeCoverSlidePrompt()
-            const b64 = await window.api.generate.image(prompt, 'openai', [coverImage])
-            images[i] = b64
-          } else {
-            images[i] = coverImage
-          }
+          const prompt = composeCoverSlidePrompt()
+          const b64 = await window.api.generate.image(prompt, imageProvider, [coverImage])
+          images[i] = b64
           setSlideImages([...images])
           setImageProgress({ done: i + 1, total: slides.length })
           continue
@@ -370,22 +366,18 @@ export default function Generator() {
 
   const handleGenerateSlideImage = async (idx) => {
     if (!slides[idx]) return
-    // Last slide: OpenAI generates a natural scene with the book; Gemini uses cover directly
+    // Last slide: generate a natural scene with the book woven in, using the cover as reference
     if (isCoverSlide(idx)) {
-      if (imageProvider === 'openai') {
-        setError('')
-        setGeneratingSlideIdx(idx)
-        try {
-          const prompt = composeCoverSlidePrompt()
-          const b64 = await window.api.generate.image(prompt, 'openai', [coverImage])
-          setSlideImages(prev => { const next = [...prev]; next[idx] = b64; return next })
-        } catch (e) {
-          setError(e.message)
-        } finally {
-          setGeneratingSlideIdx(null)
-        }
-      } else {
-        setSlideImages(prev => { const next = [...prev]; next[idx] = coverImage; return next })
+      setError('')
+      setGeneratingSlideIdx(idx)
+      try {
+        const prompt = composeCoverSlidePrompt()
+        const b64 = await window.api.generate.image(prompt, imageProvider, [coverImage])
+        setSlideImages(prev => { const next = [...prev]; next[idx] = b64; return next })
+      } catch (e) {
+        setError(e.message)
+      } finally {
+        setGeneratingSlideIdx(null)
       }
       return
     }
@@ -917,7 +909,7 @@ export default function Generator() {
           </div>
 
           <div className="flex items-center justify-between py-0.5">
-            <span className="text-xs text-tiktok-muted" title="Mit OpenAI wird eine natürliche Szene mit dem Buch generiert; mit Gemini wird das Cover direkt verwendet">
+            <span className="text-xs text-tiktok-muted" title="Das Buchcover wird als Referenz genutzt und natürlich in eine Szene eingebaut">
               Letzte Slide mit Buchcover
             </span>
             <button
@@ -936,9 +928,9 @@ export default function Generator() {
           </div>
           {coverImage ? (
             <p className="text-[11px] text-tiktok-muted leading-snug">
-              {imageProvider === 'openai'
-                ? 'OpenAI generiert eine Szene, in der das Buch natürlich liegt/gehalten wird.'
-                : 'Gemini: Das Cover wird direkt als Hintergrundbild verwendet.'}
+              {imageProvider === 'gemini'
+                ? 'Gemini baut das Buch mit „Nano Banana" natürlich in die Szene ein (liegend/in den Händen).'
+                : 'OpenAI generiert eine Szene, in der das Buch natürlich liegt/gehalten wird.'}
             </p>
           ) : (
             <p className="text-[11px] text-tiktok-muted leading-snug">
