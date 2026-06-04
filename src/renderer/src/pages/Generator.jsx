@@ -256,14 +256,15 @@ export default function Generator() {
 
   const composeImagePrompt = (slide) => {
     const scene = slide.imagePrompt || 'a cinematic scene'
+    const quality = ' Painterly texture, not glossy, not advertising, warm natural daylight, soft background blur.'
     const noText = ' No text, words, letters, or captions visible anywhere in the image.'
     const bookNote = slideShowsBook(slide)
       ? ` IMPORTANT: the book visible in the scene MUST be the exact book from the provided reference image(s) — same cover artwork, title and design. Do NOT invent a different book.`
       : ''
     const styleLabel = stylePreference || 'painterly'
-    const prefix = `Create a realistic ${styleLabel}-style vertical 9:16 TikTok slideshow. `
-    if (imageProvider === 'gemini' || !visualStyle) return prefix + scene + bookNote + noText
-    return `${prefix}Consistent visual style for the entire image series: ${visualStyle}. Scene for this slide: ${scene}. Vertical 9:16 portrait, cinematic.${bookNote}${noText}`
+    const prefix = `Create a realistic ${styleLabel}-style vertical 9:16 TikTok slideshow image. `
+    if (imageProvider === 'gemini' || !visualStyle) return prefix + scene + bookNote + quality + noText
+    return `${prefix}Consistent visual style for the entire image series: ${visualStyle}. Scene for this slide: ${scene}.${bookNote}${quality}${noText}`
   }
 
   const composeCoverSlidePrompt = () => {

@@ -100,7 +100,11 @@ Regeln für die Bild-Prompts:
 - JEDE Slide bekommt einen EIGENEN, individuellen Bild-Prompt (imagePrompt)
 - WICHTIG: Jeder imagePrompt MUSS exakt zum definierten visualStyle passen (gleiche Figur, gleiches Setting, gleiche Farben, gleiches Licht) — es soll wie dieselbe Bildserie aussehen
 - Es ändert sich nur die konkrete Szene/Handlung passend zum Text dieser Slide
-- Bild-Prompt auf Englisch, detailliert, cinematic, 9:16 Hochformat
+- PFLICHT-STRUKTUR für jeden imagePrompt (auf Englisch):
+  1. Location: "in a [spezifischer Ort, z.B. cozy German apartment kitchen / warm home bakery]"
+  2. Scene: "Show [Figur + emotionaler Zustand] [konkrete Handlung] [Objekt-Details: Textur, Zustand, Props]"
+  3. Atmosphere: "[Stimmung], warm natural daylight, painterly texture, not glossy, not advertising, soft background blur"
+- Sehr konkret und sensorisch: Textur des Teigs/Brots/Materials, Mehlstaub, nasse Hände, Holzoberflächen, etc.
 - WICHTIG: NIEMALS Text, Wörter, Buchstaben, Beschriftungen oder Untertitel im Bild — der imagePrompt darf keinerlei Textinhalte aus "text" oder "text2" enthalten${isDialog ? '\n- DIALOG-MODUS: Jedes Bild MUSS ZWEI Personen zeigen — Person A im oberen Bildbereich, Person B im unteren Bildbereich sichtbar' : ''}
 
 Regel für "showsBook" (Buch im Bild):
