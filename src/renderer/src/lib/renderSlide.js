@@ -22,6 +22,27 @@ function wrapText(ctx, text, maxWidth) {
   return lines
 }
 
+function drawAvatar(ctx, label, cx, cy) {
+  const r = 62
+  ctx.save()
+  ctx.beginPath()
+  ctx.arc(cx, cy, r, 0, Math.PI * 2)
+  ctx.fillStyle = label === 'A' ? 'rgba(255,255,255,0.18)' : 'rgba(100,212,255,0.18)'
+  ctx.fill()
+  ctx.strokeStyle = label === 'A' ? 'rgba(255,255,255,0.45)' : 'rgba(100,212,255,0.55)'
+  ctx.lineWidth = 4
+  ctx.stroke()
+  ctx.fillStyle = label === 'A' ? 'rgba(255,255,255,0.9)' : 'rgba(100,212,255,0.9)'
+  ctx.font = `bold 62px -apple-system, BlinkMacSystemFont, Arial, sans-serif`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.shadowColor = 'transparent'
+  ctx.shadowBlur = 0
+  ctx.fillText(label, cx, cy + 4)
+  ctx.restore()
+}
+
+// Returns the centerY of the rendered text block (used for avatar placement)
 function drawTextBlock(ctx, text, { fontSize, offsetX, offsetY, maxWidth }) {
   const rawLines = text.split('\n')
   const allLines = []
@@ -48,6 +69,8 @@ function drawTextBlock(ctx, text, { fontSize, offsetX, offsetY, maxWidth }) {
   ctx.shadowBlur = 0
   ctx.shadowOffsetX = 0
   ctx.shadowOffsetY = 0
+
+  return startY + totalHeight / 2 - fontSize / 2
 }
 
 export function drawSlide(ctx, {
@@ -99,7 +122,7 @@ export function drawSlide(ctx, {
   ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, Arial, sans-serif`
   ctx.textAlign = 'center'
 
-  drawTextBlock(ctx, text, { fontSize, offsetX, offsetY, maxWidth })
+  const centerY1 = drawTextBlock(ctx, text, { fontSize, offsetX, offsetY, maxWidth })
 
   if (text2) {
     // Separator line between the two speakers
@@ -114,7 +137,12 @@ export function drawSlide(ctx, {
     ctx.stroke()
     ctx.restore()
 
-    drawTextBlock(ctx, text2, { fontSize, offsetX: offsetX2, offsetY: offsetY2, maxWidth })
+    const centerY2 = drawTextBlock(ctx, text2, { fontSize, offsetX: offsetX2, offsetY: offsetY2, maxWidth })
+
+    // Person avatar circles — placed to the left of each text block
+    const avatarX = padding - 10
+    drawAvatar(ctx, 'A', avatarX, centerY1)
+    drawAvatar(ctx, 'B', avatarX, centerY2)
   }
 
   if (total > 1) {

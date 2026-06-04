@@ -62,10 +62,11 @@ function buildPrompt(params) {
   const textRules = isDialog
     ? `Regeln für den Text (DIALOG-Modus — PFLICHT):
 - 6-8 Slides, jede hat ZWEI Sprechertexte
-- "text": Aussage von Person A (erscheint OBEN im Bild) — max. 2 kurze, knappe Zeilen
-- "text2": Reaktion/Antwort von Person B (erscheint UNTEN im Bild) — max. 2 kurze, knappe Zeilen
-- Beide Texte zusammen bauen Spannung auf — kurz, direkt, emotional, kein "A:" / "B:"-Prefix
-- Letzter Slide: text = Kauf-Aufruf von Person A, text2 = Bestätigung/Handlungsaufforderung von Person B`
+- "text": Aussage von Person A (erscheint OBEN) — MAXIMAL 5 WÖRTER, eine einzige Zeile, kein Zeilenumbruch
+- "text2": Reaktion von Person B (erscheint UNTEN) — MAXIMAL 5 WÖRTER, eine einzige Zeile, kein Zeilenumbruch
+- Kein "A:" / "B:"-Prefix, nur den reinen kurzen Satz
+- Beide Texte zusammen bauen Spannung auf — extrem knapp, direkt, emotional triggern
+- Letzter Slide: text = Kauf-Aufruf (max. 5 Wörter), text2 = Handlungsaufforderung (max. 5 Wörter)`
     : `Regeln für den Text (MONOLOG-Modus):
 - 6-10 kurze Slides, jede max. 2-3 Zeilen in "text"
 - "text2" IMMER leer lassen: ""
@@ -97,7 +98,7 @@ Regeln für die Bild-Prompts:
 - JEDE Slide bekommt einen EIGENEN, individuellen Bild-Prompt (imagePrompt)
 - WICHTIG: Jeder imagePrompt MUSS exakt zum definierten visualStyle passen (gleiche Figur, gleiches Setting, gleiche Farben, gleiches Licht) — es soll wie dieselbe Bildserie aussehen
 - Es ändert sich nur die konkrete Szene/Handlung passend zum Text dieser Slide
-- Bild-Prompt auf Englisch, detailliert, cinematic, 9:16 Hochformat
+- Bild-Prompt auf Englisch, detailliert, cinematic, 9:16 Hochformat${isDialog ? '\n- DIALOG-MODUS: Jedes Bild MUSS ZWEI Personen zeigen — Person A im oberen Bildbereich, Person B im unteren Bildbereich sichtbar' : ''}
 
 Antworte NUR mit folgendem JSON (kein Markdown, kein Extra-Text):
 {

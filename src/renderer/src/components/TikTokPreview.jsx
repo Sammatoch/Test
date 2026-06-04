@@ -44,10 +44,16 @@ export default function TikTokPreview({
   const handlePointerDown = (e) => {
     if (!onOffsetChange && !onOffset2Change) return
     try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* noop */ }
-    // Top half → drag text1, bottom half → drag text2 (when text2 exists)
+
+    // Use getBoundingClientRect so relY is in display-pixel space (0..DISPLAY_H),
+    // not in canvas-pixel space — e.nativeEvent.offsetY is unreliable on a scaled canvas.
+    const rect = e.currentTarget.getBoundingClientRect()
+    const relY = e.clientY - rect.top
+
     const slide = slides?.[currentSlide]
-    const hasText2 = !!slide?.text2
-    const inBottomHalf = e.nativeEvent.offsetY > DISPLAY_H / 2
+    const hasText2 = !!(slide?.text2 && slide.text2.trim())
+    const inBottomHalf = relY > DISPLAY_H / 2
+
     if (hasText2 && inBottomHalf && onOffset2Change) {
       dragRef.current = { startX: e.clientX, startY: e.clientY, baseX: offsetX2, baseY: offsetY2, which: 2 }
     } else if (onOffsetChange) {
@@ -74,7 +80,7 @@ export default function TikTokPreview({
   }
 
   const slide = slides?.[currentSlide]
-  const hasText2 = !!slide?.text2
+  const hasText2 = !!(slide?.text2 && slide.text2.trim())
   const canDrag = onOffsetChange || onOffset2Change
 
   return (
@@ -106,19 +112,19 @@ export default function TikTokPreview({
             display: 'block'
           }}
         />
-        {/* Dialog drag-zone hint overlays */}
+        {/* Dialog zone labels */}
         {hasText2 && canDrag && (
           <>
             <div style={{
               position: 'absolute', top: 6, left: 8,
-              fontSize: 10, color: 'rgba(255,255,255,0.5)',
-              pointerEvents: 'none', fontWeight: 600, letterSpacing: 1
-            }}>A</div>
+              fontSize: 10, color: 'rgba(255,255,255,0.55)',
+              pointerEvents: 'none', fontWeight: 700
+            }}>A ↕</div>
             <div style={{
               position: 'absolute', bottom: 6, left: 8,
-              fontSize: 10, color: 'rgba(255,255,255,0.5)',
-              pointerEvents: 'none', fontWeight: 600, letterSpacing: 1
-            }}>B</div>
+              fontSize: 10, color: 'rgba(100,212,255,0.7)',
+              pointerEvents: 'none', fontWeight: 700
+            }}>B ↕</div>
           </>
         )}
       </div>
