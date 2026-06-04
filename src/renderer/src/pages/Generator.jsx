@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
 import {
   Wand2, ChevronLeft, ChevronRight, Image, FolderOpen,
-  Download, Copy, Check, Loader2, Save, Plus, Zap
+  Download, Copy, Check, Loader2, Save, Plus, Zap, Pencil
 } from 'lucide-react'
 import TikTokPreview from '../components/TikTokPreview.jsx'
 import { renderSlideToDataURL, DEFAULT_FONT_SIZE } from '../lib/renderSlide.js'
@@ -86,6 +86,7 @@ export default function Generator() {
   const [indexedTexts, setIndexedTexts] = useState([])
   const [useIndexing, setUseIndexing] = useState(false)
   const [copiedIdx, setCopiedIdx] = useState(null)
+  const [editingIdx, setEditingIdx] = useState(null)
   const [globalFontSize, setGlobalFontSize] = useState(DEFAULT_FONT_SIZE)
   const [textSettings, setTextSettings] = useState([])
 
@@ -287,6 +288,19 @@ export default function Generator() {
     await navigator.clipboard.writeText(text)
     setCopiedIdx(idx)
     setTimeout(() => setCopiedIdx(null), 1500)
+  }
+
+  const handleEditText = (idx, value) => {
+    setSlides(prev => {
+      const next = [...prev]
+      next[idx] = { ...next[idx], text: value }
+      return next
+    })
+    // A manual edit invalidates the previously generated TikTok-indexed text
+    if (useIndexing || indexedTexts.length) {
+      setUseIndexing(false)
+      setIndexedTexts([])
+    }
   }
 
   const handleGenerateAllImages = async () => {
@@ -663,7 +677,34 @@ export default function Generator() {
                       }`}>
                         {idx + 1}
                       </span>
-                      <p className="flex-1 text-white text-sm leading-snug whitespace-pre-wrap">{displayText}</p>
+                      {editingIdx === idx ? (
+                        <textarea
+                          autoFocus
+                          value={slide.text}
+                          onClick={e => e.stopPropagation()}
+                          onChange={e => handleEditText(idx, e.target.value)}
+                          onBlur={() => setEditingIdx(null)}
+                          rows={Math.max(2, slide.text.split('\n').length)}
+                          className="flex-1 bg-black border border-tiktok-red/50 rounded-lg px-2 py-1.5 text-white text-sm leading-snug focus:outline-none focus:border-tiktok-red resize-none"
+                        />
+                      ) : (
+                        <p
+                          className="flex-1 text-white text-sm leading-snug whitespace-pre-wrap"
+                          onDoubleClick={e => { e.stopPropagation(); setEditingIdx(idx) }}
+                          title="Doppelklick zum Bearbeiten"
+                        >
+                          {displayText}
+                        </p>
+                      )}
+                      <button
+                        onClick={e => { e.stopPropagation(); setEditingIdx(editingIdx === idx ? null : idx) }}
+                        className={`shrink-0 p-1.5 rounded transition-colors ${
+                          editingIdx === idx ? 'text-tiktok-red' : 'text-tiktok-muted hover:text-white'
+                        }`}
+                        title={editingIdx === idx ? 'Fertig' : 'Text bearbeiten'}
+                      >
+                        {editingIdx === idx ? <Check size={14} /> : <Pencil size={14} />}
+                      </button>
                       <button
                         onClick={e => { e.stopPropagation(); handleCopy(displayText, idx) }}
                         className="shrink-0 p-1.5 rounded text-tiktok-muted hover:text-white transition-colors"
