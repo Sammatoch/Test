@@ -37,7 +37,7 @@ const selectClass =
 
 const SESSION_KEY = 'tiktok-generator-session'
 const VIRAL_SESSION_KEY = 'tiktok-viral-session'
-const DEFAULT_STYLE = 'painterly style'
+const DEFAULT_STYLE = 'warm cinematic oil painting, photorealistic, golden natural light, rich textures, rustic atmosphere'
 
 // Aggregate hashtags from the last Apify viral search, ranked by frequency
 function loadViralHashtags() {
