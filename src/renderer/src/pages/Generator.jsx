@@ -104,7 +104,7 @@ export default function Generator() {
   const [imageProvider, setImageProvider] = useState('openai')
   const [slideImages, setSlideImages] = useState([])
   const [imageProgress, setImageProgress] = useState(null)
-  const [consistencyMode, setConsistencyMode] = useState(true)
+  const [consistencyMode, setConsistencyMode] = useState(false)
   const [refFolders, setRefFolders] = useState([])
   const [selectedRefFolder, setSelectedRefFolder] = useState('')
   const [referenceImages, setReferenceImages] = useState([])
@@ -1159,8 +1159,8 @@ export default function Generator() {
             ))}
           </div>
           <div className="flex items-center justify-between py-0.5">
-            <span className="text-xs text-tiktok-muted" title="Nutzt das erste Bild als Stil-Anker für alle weiteren Slides">
-              Konsistenz-Modus
+            <span className="text-xs text-tiktok-muted" title="Nutzt das erste Bild als Stil-Anker für alle weiteren Slides. ACHTUNG: senkt die Bildqualität, da OpenAI dann den images.edit-Modus statt der hochwertigeren reinen Bildgenerierung nutzt. Für beste Qualität (wie in ChatGPT) ausgeschaltet lassen.">
+              Konsistenz-Modus <span className="opacity-60">(↓ Qualität)</span>
             </span>
             <button
               onClick={() => setConsistencyMode(v => !v)}
