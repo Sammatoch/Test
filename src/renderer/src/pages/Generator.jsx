@@ -323,8 +323,8 @@ export default function Generator() {
       }
       const normalized = slidesArray
         .map(s => (typeof s === 'string'
-          ? { text: s, label: '', imagePrompt: '' }
-          : { text: s?.text ?? '', label: s?.label ?? '', imagePrompt: s?.imagePrompt ?? '' }))
+          ? { text: s, text2: '', label: '', imagePrompt: '' }
+          : { text: s?.text ?? '', text2: s?.text2 ?? '', label: s?.label ?? '', imagePrompt: s?.imagePrompt ?? '' }))
         .filter(s => s.text && s.text.trim())
       if (!normalized.length) {
         setError('Die KI hat keine verwertbaren Slides zurückgegeben. Antwort: ' + JSON.stringify(result).slice(0, 300))
@@ -569,6 +569,8 @@ export default function Generator() {
   }
 
   const viralHooks = hooks.filter(h => h.isViral)
+  // Dialog content: at least one slide carries a second speaker text
+  const isDialogContent = slides.some(s => s.text2 && s.text2.trim())
 
   return (
     <div className="h-full flex overflow-hidden">
@@ -833,7 +835,7 @@ export default function Generator() {
                       <div className="flex-1 min-w-0 space-y-1.5">
                         {/* Text A (always) */}
                         <div className="flex items-start gap-1">
-                          {slide.text2 && (
+                          {isDialogContent && (
                             <span className="shrink-0 text-[10px] font-bold text-white/40 mt-1 w-3">A</span>
                           )}
                           {editingIdx === idx ? (
@@ -872,7 +874,7 @@ export default function Generator() {
                         </div>
 
                         {/* Text B (dialog only) */}
-                        {slide.text2 !== undefined && slide.text2 !== null && (
+                        {isDialogContent && (
                           <div className="flex items-start gap-1 pl-0 border-t border-dashed border-tiktok-border pt-1.5">
                             <span className="shrink-0 text-[10px] font-bold text-tiktok-cyan/60 mt-1 w-3">B</span>
                             {editingIdx2 === idx ? (
