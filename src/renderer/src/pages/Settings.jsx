@@ -54,6 +54,7 @@ export default function Settings() {
     apifyKey: '',
     referenceBaseDir: '',
     bookCoverPath: '',
+    bookBackCoverPath: '',
     defaultBookTitle: 'Mein Sauerteig Backbuch',
     defaultNiche: 'Backen / Sauerteig',
     defaultLanguage: 'de',
@@ -62,6 +63,7 @@ export default function Settings() {
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
   const [coverPreview, setCoverPreview] = useState(null)
+  const [backCoverPreview, setBackCoverPreview] = useState(null)
 
   useEffect(() => {
     window.api.settings.get().then(s => {
@@ -79,6 +81,14 @@ export default function Settings() {
       .catch(() => setCoverPreview(null))
   }, [form.bookCoverPath])
 
+  // Load a preview of the configured back cover
+  useEffect(() => {
+    if (!form.bookBackCoverPath) { setBackCoverPreview(null); return }
+    window.api.references.readAsBase64(form.bookBackCoverPath)
+      .then(b64 => setBackCoverPreview(b64 || null))
+      .catch(() => setBackCoverPreview(null))
+  }, [form.bookBackCoverPath])
+
   const handleSelectFolder = async () => {
     const dir = await window.api.references.selectFolder()
     if (dir) set('referenceBaseDir', dir)
@@ -87,6 +97,11 @@ export default function Settings() {
   const handleSelectCover = async () => {
     const file = await window.api.references.selectImageFile()
     if (file) set('bookCoverPath', file)
+  }
+
+  const handleSelectBackCover = async () => {
+    const file = await window.api.references.selectImageFile()
+    if (file) set('bookBackCoverPath', file)
   }
 
   const handleSave = async () => {
@@ -179,8 +194,8 @@ export default function Settings() {
 
             <div className="mt-4">
               <Field
-                label="Buchcover (letzte Slide)"
-                hint="Dein Buchcover. Es wird im Generator automatisch als Bild der LETZTEN Slide verwendet (mit deinem Kauf-Aufruf als Text darüber)."
+                label="Buchcover – Vorderseite (letzte Slide)"
+                hint="Dein Buchcover (Vorderseite). Es wird im Generator als Referenz genutzt und natürlich in eine Szene der LETZTEN Slide eingebaut (mit deinem Kauf-Aufruf als Text darüber)."
               >
                 <div className="flex gap-2 items-start">
                   {coverPreview ? (
@@ -204,6 +219,42 @@ export default function Settings() {
                   <button
                     type="button"
                     onClick={handleSelectCover}
+                    className="flex items-center gap-2 px-4 py-2.5 border border-tiktok-border hover:border-white/30 text-tiktok-muted hover:text-white rounded-lg text-sm transition-colors shrink-0"
+                  >
+                    <FolderOpen size={16} />
+                    Wählen
+                  </button>
+                </div>
+              </Field>
+            </div>
+
+            <div className="mt-4">
+              <Field
+                label="Buchcover – Rückseite (optional)"
+                hint="Optional: die Rückseite deines Buchs. Wird zusätzlich als Referenz übergeben, damit das Buch in der Szene noch realistischer wirkt."
+              >
+                <div className="flex gap-2 items-start">
+                  {backCoverPreview ? (
+                    <img
+                      src={'data:image/png;base64,' + backCoverPreview}
+                      alt="Backcover"
+                      className="w-12 h-[68px] object-cover rounded-md border border-tiktok-border shrink-0"
+                    />
+                  ) : (
+                    <div className="w-12 h-[68px] rounded-md border border-dashed border-tiktok-border flex items-center justify-center shrink-0">
+                      <FolderOpen size={16} className="text-tiktok-muted opacity-50" />
+                    </div>
+                  )}
+                  <input
+                    type="text"
+                    value={form.bookBackCoverPath}
+                    onChange={e => set('bookBackCoverPath', e.target.value)}
+                    placeholder="z.B. C:\Users\Du\backcover.png"
+                    className="flex-1 bg-black border border-tiktok-border rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-tiktok-red placeholder-tiktok-muted"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSelectBackCover}
                     className="flex items-center gap-2 px-4 py-2.5 border border-tiktok-border hover:border-white/30 text-tiktok-muted hover:text-white rounded-lg text-sm transition-colors shrink-0"
                   >
                     <FolderOpen size={16} />

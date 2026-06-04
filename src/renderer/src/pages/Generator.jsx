@@ -84,6 +84,7 @@ export default function Generator() {
   const [referenceImages, setReferenceImages] = useState([])
   const [loadingRefs, setLoadingRefs] = useState(false)
   const [coverImage, setCoverImage] = useState(null)
+  const [backCoverImage, setBackCoverImage] = useState(null)
   const [useCoverLastSlide, setUseCoverLastSlide] = useState(true)
   const [indexedTexts, setIndexedTexts] = useState([])
   const [useIndexing, setUseIndexing] = useState(false)
@@ -179,6 +180,17 @@ export default function Generator() {
       .catch(() => setCoverImage(null))
   }, [settings.bookCoverPath])
 
+  // Load the optional back cover, passed as an additional reference for the last slide
+  useEffect(() => {
+    if (!settings.bookBackCoverPath) { setBackCoverImage(null); return }
+    window.api.references.readAsBase64(settings.bookBackCoverPath)
+      .then(b64 => setBackCoverImage(b64 || null))
+      .catch(() => setBackCoverImage(null))
+  }, [settings.bookBackCoverPath])
+
+  // Cover reference images for the last slide (front always, back if configured)
+  const coverRefs = () => [coverImage, backCoverImage].filter(Boolean)
+
   const isCoverSlide = (idx) => useCoverLastSlide && coverImage && idx === slides.length - 1
 
   const getTextSettings = (idx) => ({
@@ -205,7 +217,11 @@ export default function Generator() {
   }
 
   const composeCoverSlidePrompt = () => {
-    const scene = `Take the book cover shown in the provided image and render it as a real, physical printed book placed naturally in a cozy scene — for example lying on a rustic wooden kitchen table next to fresh bread, or held in someone's hands. Keep the cover artwork, title and design exactly as in the reference image, clearly visible and readable as the main subject. Warm, inviting cinematic lighting, photorealistic, vertical 9:16 portrait.`
+    const hasBack = !!backCoverImage
+    const source = hasBack
+      ? `The provided images show the FRONT and BACK cover of the same book.`
+      : `The provided image shows the book cover.`
+    const scene = `${source} Render it as a real, physical printed book placed naturally in a cozy scene — for example lying on a rustic wooden kitchen table next to fresh bread, or held in someone's hands. Keep the cover artwork, title and design exactly as in the reference image(s), clearly visible and readable as the main subject. Warm, inviting cinematic lighting, photorealistic, vertical 9:16 portrait.`
     if (visualStyle) return `Overall visual style of the series: ${visualStyle}. ${scene}`
     return scene
   }
@@ -336,7 +352,7 @@ export default function Generator() {
         // as a reference image (OpenAI via images.edit, Gemini via gemini-2.5-flash-image).
         if (isCoverSlide(i)) {
           const prompt = composeCoverSlidePrompt()
-          const b64 = await window.api.generate.image(prompt, imageProvider, [coverImage])
+          const b64 = await window.api.generate.image(prompt, imageProvider, coverRefs())
           images[i] = b64
           setSlideImages([...images])
           setImageProgress({ done: i + 1, total: slides.length })
@@ -372,7 +388,7 @@ export default function Generator() {
       setGeneratingSlideIdx(idx)
       try {
         const prompt = composeCoverSlidePrompt()
-        const b64 = await window.api.generate.image(prompt, imageProvider, [coverImage])
+        const b64 = await window.api.generate.image(prompt, imageProvider, coverRefs())
         setSlideImages(prev => { const next = [...prev]; next[idx] = b64; return next })
       } catch (e) {
         setError(e.message)
