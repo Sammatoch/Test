@@ -144,7 +144,7 @@ export async function generateImage(prompt, settings) {
     model: 'gpt-image-1',
     prompt,
     n: 1,
-    size: '1024x1792'
+    size: '1024x1536'
   })
   const img = res.data[0]
   // Some image models return base64 directly, dall-e-3 returns a URL by default
