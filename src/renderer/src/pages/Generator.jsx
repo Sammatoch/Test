@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
 import {
   Wand2, ChevronLeft, ChevronRight, Image, FolderOpen,
-  Download, Copy, Check, Loader2, Save, Plus, Zap, Pencil
+  Download, Copy, Check, Loader2, Save, Plus, Zap, Pencil, TrendingUp
 } from 'lucide-react'
 import TikTokPreview from '../components/TikTokPreview.jsx'
 import { renderSlideToDataURL, DEFAULT_FONT_SIZE } from '../lib/renderSlide.js'
@@ -36,6 +36,30 @@ const selectClass =
   'w-full bg-black border border-tiktok-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-tiktok-red'
 
 const SESSION_KEY = 'tiktok-generator-session'
+const VIRAL_SESSION_KEY = 'tiktok-viral-session'
+
+// Aggregate hashtags from the last Apify viral search, ranked by frequency
+function loadViralHashtags() {
+  try {
+    const viral = JSON.parse(localStorage.getItem(VIRAL_SESSION_KEY))
+    const videos = viral?.videos
+    if (!Array.isArray(videos) || !videos.length) return []
+    const counts = new Map()
+    for (const v of videos) {
+      for (const h of v.hashtags || []) {
+        const name = (h?.name || h || '').toString().trim().replace(/^#/, '')
+        if (!name) continue
+        const key = name.toLowerCase()
+        const existing = counts.get(key)
+        if (existing) existing.count++
+        else counts.set(key, { name, count: 1 })
+      }
+    }
+    return [...counts.values()].sort((a, b) => b.count - a.count).slice(0, 30)
+  } catch {
+    return []
+  }
+}
 
 function loadSession() {
   try {
@@ -93,6 +117,9 @@ export default function Generator() {
   const [globalFontSize, setGlobalFontSize] = useState(DEFAULT_FONT_SIZE)
   const [textSettings, setTextSettings] = useState([])
 
+  const [viralHashtags, setViralHashtags] = useState([])
+  const [copiedTags, setCopiedTags] = useState(false)
+
   const [generating, setGenerating] = useState(false)
   const [generatingImage, setGeneratingImage] = useState(false)
   const [generatingSlideIdx, setGeneratingSlideIdx] = useState(null)
@@ -148,6 +175,8 @@ export default function Generator() {
       if (nav.situation) setSituation(nav.situation)
       hydrated.current = true
     })
+    // Show hashtags from the most recent Apify viral search
+    setViralHashtags(loadViralHashtags())
   }, [])
 
   // Persist input fields + generated text (never images) so they survive an app restart
@@ -489,6 +518,18 @@ export default function Generator() {
     }
   }
 
+  const handleCopyHashtag = async (tag) => {
+    await navigator.clipboard.writeText('#' + tag)
+    showSuccess(`#${tag} kopiert`)
+  }
+
+  const handleCopyAllHashtags = async () => {
+    const all = viralHashtags.map(h => '#' + h.name).join(' ')
+    await navigator.clipboard.writeText(all)
+    setCopiedTags(true)
+    setTimeout(() => setCopiedTags(false), 1500)
+  }
+
   const handleSelectHook = (h) => {
     setHook(h.text)
     setShowHookDropdown(false)
@@ -652,6 +693,45 @@ export default function Generator() {
           {generating ? <Loader2 size={16} className="animate-spin" /> : <Wand2 size={16} />}
           {generating ? 'Generiere...' : 'Content generieren'}
         </button>
+
+        {/* Hashtags from the latest Apify viral search */}
+        <div className="mt-2 pt-3 border-t border-tiktok-border">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1.5">
+              <TrendingUp size={13} className="text-tiktok-cyan" />
+              <span className="text-xs font-medium text-tiktok-muted uppercase tracking-wider">Apify Hashtags</span>
+            </div>
+            {viralHashtags.length > 0 && (
+              <button
+                onClick={handleCopyAllHashtags}
+                className="flex items-center gap-1 text-xs text-tiktok-muted hover:text-tiktok-cyan transition-colors"
+                title="Alle Hashtags kopieren"
+              >
+                {copiedTags ? <Check size={12} className="text-tiktok-cyan" /> : <Copy size={12} />}
+                {copiedTags ? 'Kopiert' : 'Alle'}
+              </button>
+            )}
+          </div>
+          {viralHashtags.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {viralHashtags.map(h => (
+                <button
+                  key={h.name}
+                  onClick={() => handleCopyHashtag(h.name)}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-black border border-tiktok-border text-xs text-tiktok-cyan hover:border-tiktok-cyan/50 transition-colors"
+                  title={`${h.count}× gefunden – klicken zum Kopieren`}
+                >
+                  #{h.name}
+                  <span className="text-tiktok-muted">{h.count}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-[11px] text-tiktok-muted leading-snug">
+              Noch keine Hashtags. Führe in „Viral Research" eine Suche durch — die häufigsten Hashtags erscheinen hier.
+            </p>
+          )}
+        </div>
       </div>
 
       {/* CENTER PANEL */}
