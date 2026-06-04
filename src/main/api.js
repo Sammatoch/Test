@@ -307,13 +307,24 @@ Erstelle:
 Antworte NUR mit diesem JSON:
 {"hook":"...","situation":"...","analysis":"..."}`
 
+  if (!videoSummaries.trim()) {
+    throw new Error('Keine analysierbaren Video-Texte gefunden. Bitte zuerst eine Suche durchführen.')
+  }
+
   const client = new Anthropic({ apiKey: settings.anthropicKey })
-  const msg = await client.messages.create({
+  const msg = await withRetry(() => client.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 512,
     messages: [{ role: 'user', content: prompt }]
-  })
-  return parseAIResponse(msg.content[0]?.text || '')
+  }))
+  const block = (msg.content || []).find(b => b.type === 'text')
+  const text = block?.text || ''
+  if (!text.trim()) throw new Error('Claude hat keine Antwort geliefert')
+  const parsed = parseAIResponse(text)
+  if (!parsed?.hook) {
+    throw new Error('Analyse konnte nicht ausgewertet werden: ' + text.slice(0, 200))
+  }
+  return { hook: parsed.hook || '', situation: parsed.situation || '', analysis: parsed.analysis || '' }
 }
 
 export function applyTikTokIndexing(text) {

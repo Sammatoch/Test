@@ -80,7 +80,17 @@ export default function ViralResearch() {
     setError('')
     setAnalyzing(true)
     try {
-      const result = await window.api.viral.analyze(videos)
+      // Send only the fields the analysis needs — full Apify objects are huge
+      const compact = videos.slice(0, 15).map(v => ({
+        text: v.text || v.description || '',
+        playCount: v.playCount || v.stats?.playCount || 0,
+        diggCount: v.diggCount || v.stats?.diggCount || 0,
+        hashtags: (v.hashtags || []).map(h => ({ name: h.name || h }))
+      }))
+      const result = await window.api.viral.analyze(compact)
+      if (!result?.hook) {
+        throw new Error('Die KI-Analyse lieferte kein Ergebnis.')
+      }
       setAnalysis(result)
     } catch (e) {
       setError(e.message || 'Fehler bei der KI-Analyse')
