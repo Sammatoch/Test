@@ -36,7 +36,14 @@ Antworte NUR mit folgendem JSON (kein Markdown, kein Extra-Text):
 
 function parseAIResponse(text) {
   let cleaned = text.trim()
-  cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '')
+  // Strip markdown fences if present
+  cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim()
+  // Extract JSON object by finding outermost { } — handles any leading/trailing prose
+  const first = cleaned.indexOf('{')
+  const last = cleaned.lastIndexOf('}')
+  if (first !== -1 && last !== -1 && last > first) {
+    cleaned = cleaned.slice(first, last + 1)
+  }
   return JSON.parse(cleaned)
 }
 
@@ -48,7 +55,7 @@ export async function generateContent(params, settings) {
     if (!settings.anthropicKey) throw new Error('Bitte Anthropic API-Key in Einstellungen hinterlegen')
     const client = new Anthropic({ apiKey: settings.anthropicKey })
     const msg = await client.messages.create({
-      model: 'claude-opus-4-5',
+      model: 'claude-sonnet-4-6',
       max_tokens: 2048,
       messages: [{ role: 'user', content: prompt }]
     })
