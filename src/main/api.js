@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import OpenAI from 'openai'
 import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai'
+import { GoogleGenAI } from '@google/genai'
 
 const POST_SCHEMA = {
   type: 'object',
@@ -177,8 +178,8 @@ export async function generateContent(params, settings) {
   throw new Error(`Unbekannter Provider: ${provider}`)
 }
 
-export async function generateImage(prompt, settings) {
-  if (!settings.openaiKey) throw new Error('Bitte OpenAI API-Key in Einstellungen hinterlegen (für DALL-E)')
+async function generateImageOpenAI(prompt, settings) {
+  if (!settings.openaiKey) throw new Error('Bitte OpenAI API-Key in Einstellungen hinterlegen')
   const client = new OpenAI({ apiKey: settings.openaiKey })
   const res = await client.images.generate({
     model: 'gpt-image-1',
@@ -187,11 +188,29 @@ export async function generateImage(prompt, settings) {
     size: '1024x1536'
   })
   const img = res.data[0]
-  // Some image models return base64 directly, dall-e-3 returns a URL by default
   if (img.b64_json) return img.b64_json
   const resp = await fetch(img.url)
   const arrayBuffer = await resp.arrayBuffer()
   return Buffer.from(arrayBuffer).toString('base64')
+}
+
+async function generateImageGemini(prompt, settings) {
+  if (!settings.geminiKey) throw new Error('Bitte Gemini API-Key in Einstellungen hinterlegen')
+  const ai = new GoogleGenAI({ apiKey: settings.geminiKey })
+  const res = await ai.models.generateImages({
+    model: 'imagen-4.0-generate-001',
+    prompt,
+    config: { numberOfImages: 1, aspectRatio: '9:16' }
+  })
+  const generated = res?.generatedImages?.[0]
+  const bytes = generated?.image?.imageBytes
+  if (!bytes) throw new Error('Gemini hat kein Bild zurückgegeben (evtl. durch Sicherheitsfilter blockiert)')
+  return bytes
+}
+
+export async function generateImage(prompt, settings, imageProvider = 'openai') {
+  if (imageProvider === 'gemini') return generateImageGemini(prompt, settings)
+  return generateImageOpenAI(prompt, settings)
 }
 
 export function applyTikTokIndexing(text) {

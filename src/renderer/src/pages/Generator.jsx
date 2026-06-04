@@ -55,6 +55,7 @@ export default function Generator() {
   const [hookSummary, setHookSummary] = useState('')
   const [currentSlide, setCurrentSlide] = useState(0)
 
+  const [imageProvider, setImageProvider] = useState('openai')
   const [imageBase64, setImageBase64] = useState(null)
   const [indexedTexts, setIndexedTexts] = useState([])
   const [useIndexing, setUseIndexing] = useState(false)
@@ -170,7 +171,7 @@ export default function Generator() {
     setError('')
     setGeneratingImage(true)
     try {
-      const b64 = await window.api.generate.image(imagePrompt)
+      const b64 = await window.api.generate.image(imagePrompt, imageProvider)
       setImageBase64(b64)
     } catch (e) {
       setError(e.message)
@@ -542,13 +543,31 @@ export default function Generator() {
         )}
 
         <div className="space-y-2">
+          <div className="flex gap-2">
+            {[
+              { value: 'openai', label: 'OpenAI' },
+              { value: 'gemini', label: 'Gemini' }
+            ].map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => setImageProvider(opt.value)}
+                className={`flex-1 py-1.5 text-xs rounded-lg border transition-colors ${
+                  imageProvider === opt.value
+                    ? 'border-tiktok-red bg-tiktok-red/10 text-tiktok-red font-medium'
+                    : 'border-tiktok-border text-tiktok-muted hover:text-white hover:border-white/30'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
           <button
             onClick={handleGenerateImage}
             disabled={generatingImage || !imagePrompt}
             className="w-full flex items-center justify-center gap-2 py-2 bg-tiktok-red hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium rounded-lg transition-colors"
           >
             {generatingImage ? <Loader2 size={14} className="animate-spin" /> : <Image size={14} />}
-            {generatingImage ? 'Bild wird generiert...' : 'Bild generieren'}
+            {generatingImage ? 'Bild wird generiert...' : `Bild generieren (${imageProvider === 'gemini' ? 'Gemini' : 'OpenAI'})`}
           </button>
 
           {imageBase64 && (

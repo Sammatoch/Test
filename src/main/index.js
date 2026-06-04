@@ -77,9 +77,9 @@ ipcMain.handle('generate:content', async (_, params) => {
   return generateContent(params, settings)
 })
 
-ipcMain.handle('generate:image', async (_, prompt) => {
+ipcMain.handle('generate:image', async (_, prompt, imageProvider) => {
   const settings = store.settings.get()
-  return generateImage(prompt, settings)
+  return generateImage(prompt, settings, imageProvider)
 })
 
 ipcMain.handle('generate:tiktokText', (_, text) => applyTikTokIndexing(text))

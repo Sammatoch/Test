@@ -30,7 +30,7 @@ contextBridge.exposeInMainWorld('api', {
   },
   generate: {
     content: (params) => ipcRenderer.invoke('generate:content', params),
-    image: (prompt) => ipcRenderer.invoke('generate:image', prompt),
+    image: (prompt, imageProvider) => ipcRenderer.invoke('generate:image', prompt, imageProvider),
     tiktokText: (text) => ipcRenderer.invoke('generate:tiktokText', text)
   },
   export: {
