@@ -5,6 +5,7 @@ import {
   Download, Copy, Check, Loader2, Save, Plus, Zap
 } from 'lucide-react'
 import TikTokPreview from '../components/TikTokPreview.jsx'
+import { renderSlideToDataURL } from '../lib/renderSlide.js'
 
 const LANGUAGES = [
   { value: 'de', label: 'Deutsch' },
@@ -51,12 +52,12 @@ export default function Generator() {
   const [provider, setProvider] = useState('anthropic')
 
   const [slides, setSlides] = useState([])
-  const [imagePrompt, setImagePrompt] = useState('')
   const [hookSummary, setHookSummary] = useState('')
   const [currentSlide, setCurrentSlide] = useState(0)
 
   const [imageProvider, setImageProvider] = useState('openai')
-  const [imageBase64, setImageBase64] = useState(null)
+  const [slideImages, setSlideImages] = useState([])
+  const [imageProgress, setImageProgress] = useState(null)
   const [indexedTexts, setIndexedTexts] = useState([])
   const [useIndexing, setUseIndexing] = useState(false)
   const [copiedIdx, setCopiedIdx] = useState(null)
@@ -106,9 +107,8 @@ export default function Generator() {
     setError('')
     setGenerating(true)
     setSlides([])
-    setImagePrompt('')
     setHookSummary('')
-    setImageBase64(null)
+    setSlideImages([])
     setIndexedTexts([])
     setCurrentSlide(0)
     try {
@@ -130,14 +130,16 @@ export default function Generator() {
         slidesArray = []
       }
       const normalized = slidesArray
-        .map(s => (typeof s === 'string' ? { text: s, label: '' } : { text: s?.text ?? '', label: s?.label ?? '' }))
+        .map(s => (typeof s === 'string'
+          ? { text: s, label: '', imagePrompt: '' }
+          : { text: s?.text ?? '', label: s?.label ?? '', imagePrompt: s?.imagePrompt ?? '' }))
         .filter(s => s.text && s.text.trim())
       if (!normalized.length) {
         setError('Die KI hat keine verwertbaren Slides zurückgegeben. Antwort: ' + JSON.stringify(result).slice(0, 300))
         return
       }
       setSlides(normalized)
-      setImagePrompt(result?.imagePrompt || '')
+      setSlideImages(new Array(normalized.length).fill(null))
       setHookSummary(result?.hookSummary || '')
     } catch (e) {
       setError(e.message)
@@ -166,13 +168,40 @@ export default function Generator() {
     setTimeout(() => setCopiedIdx(null), 1500)
   }
 
-  const handleGenerateImage = async () => {
-    if (!imagePrompt) return
+  const handleGenerateAllImages = async () => {
+    if (!slides.length) return
+    setError('')
+    setGeneratingImage(true)
+    setImageProgress({ done: 0, total: slides.length })
+    try {
+      const images = [...slideImages]
+      for (let i = 0; i < slides.length; i++) {
+        const prompt = slides[i].imagePrompt || slides[i].text
+        const b64 = await window.api.generate.image(prompt, imageProvider)
+        images[i] = b64
+        setSlideImages([...images])
+        setImageProgress({ done: i + 1, total: slides.length })
+      }
+    } catch (e) {
+      setError(`Bild ${(imageProgress?.done ?? 0) + 1}: ${e.message}`)
+    } finally {
+      setGeneratingImage(false)
+      setImageProgress(null)
+    }
+  }
+
+  const handleGenerateSlideImage = async (idx) => {
+    const prompt = slides[idx]?.imagePrompt || slides[idx]?.text
+    if (!prompt) return
     setError('')
     setGeneratingImage(true)
     try {
-      const b64 = await window.api.generate.image(imagePrompt, imageProvider)
-      setImageBase64(b64)
+      const b64 = await window.api.generate.image(prompt, imageProvider)
+      setSlideImages(prev => {
+        const next = [...prev]
+        next[idx] = b64
+        return next
+      })
     } catch (e) {
       setError(e.message)
     } finally {
@@ -181,19 +210,19 @@ export default function Generator() {
   }
 
   const handleExport = async () => {
-    if (!canvasRef.current) return
+    if (!slides.length) return
     setExporting(true)
     try {
-      const canvas = canvasRef.current.querySelector('canvas')
-      if (!canvas) {
-        setError('Canvas nicht gefunden.')
-        return
+      const stamp = Date.now()
+      let lastPath = ''
+      for (let i = 0; i < slides.length; i++) {
+        const text = getDisplayText(slides[i], i)
+        const dataUrl = await renderSlideToDataURL(text, i, slides.length, slideImages[i] || null)
+        const base64 = dataUrl.replace(/^data:image\/png;base64,/, '')
+        const num = String(i + 1).padStart(2, '0')
+        lastPath = await window.api.export.post(base64, `tiktok_${stamp}_slide${num}.png`)
       }
-      const dataUrl = canvas.toDataURL('image/png')
-      const base64 = dataUrl.replace(/^data:image\/png;base64,/, '')
-      const filename = `tiktok_${Date.now()}.png`
-      const filePath = await window.api.export.post(base64, filename)
-      showSuccess(`Exportiert: ${filePath}`)
+      showSuccess(`${slides.length} Slides exportiert nach: ${lastPath.replace(/[^\\/]+$/, '')}`)
     } catch (e) {
       setError(e.message)
     } finally {
@@ -202,9 +231,10 @@ export default function Generator() {
   }
 
   const handleSaveImage = async () => {
-    if (!imageBase64) return
+    const current = slideImages[currentSlide]
+    if (!current) return
     try {
-      await window.api.images.saveFromBase64(imageBase64, imagePrompt)
+      await window.api.images.saveFromBase64(current, slides[currentSlide]?.imagePrompt || '')
       showSuccess('Bild in Bibliothek gespeichert!')
     } catch (e) {
       setError(e.message)
@@ -215,14 +245,18 @@ export default function Generator() {
     if (!slides.length) return
     setSaving(true)
     try {
-      let imagePath = null
-      if (imageBase64) {
-        const record = await window.api.images.saveFromBase64(imageBase64, imagePrompt)
-        imagePath = await window.api.images.getFilePath(record.id)
+      const imagePaths = []
+      for (let i = 0; i < slides.length; i++) {
+        if (slideImages[i]) {
+          const record = await window.api.images.saveFromBase64(slideImages[i], slides[i]?.imagePrompt || '')
+          imagePaths[i] = await window.api.images.getFilePath(record.id)
+        } else {
+          imagePaths[i] = null
+        }
       }
       await window.api.posts.save({
         bookTitle, niche, situation, hook, perspective, language,
-        slides, imagePrompt, imagePath
+        slides, imagePaths
       })
       showSuccess('Post gespeichert!')
     } catch (e) {
@@ -259,8 +293,11 @@ export default function Generator() {
     try {
       const b64 = await window.api.images.readAsBase64(first.id)
       if (b64) {
-        setImageBase64(b64)
-        setImagePrompt(first.prompt || '')
+        setSlideImages(prev => {
+          const next = [...prev]
+          next[currentSlide] = b64
+          return next
+        })
       }
     } catch (e) {
       setError(e.message)
@@ -473,35 +510,49 @@ export default function Generator() {
             <div className="space-y-2">
               {slides.map((slide, idx) => {
                 const displayText = getDisplayText(slide, idx)
+                const hasImage = !!slideImages[idx]
                 return (
                   <div
                     key={idx}
                     onClick={() => setCurrentSlide(idx)}
-                    className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                    className={`p-3 rounded-xl border cursor-pointer transition-colors ${
                       currentSlide === idx
                         ? 'border-tiktok-red bg-tiktok-red/5'
                         : 'border-tiktok-border bg-tiktok-surface hover:border-tiktok-border/80'
                     }`}
                   >
-                    <span className="shrink-0 w-6 h-6 rounded-full bg-tiktok-border flex items-center justify-center text-xs text-tiktok-muted font-medium">
-                      {idx + 1}
-                    </span>
-                    <p className="flex-1 text-white text-sm leading-snug whitespace-pre-wrap">{displayText}</p>
-                    <button
-                      onClick={e => { e.stopPropagation(); handleCopy(displayText, idx) }}
-                      className="shrink-0 p-1.5 rounded text-tiktok-muted hover:text-white transition-colors"
-                      title="Kopieren"
-                    >
-                      {copiedIdx === idx ? <Check size={14} className="text-tiktok-cyan" /> : <Copy size={14} />}
-                    </button>
+                    <div className="flex items-start gap-3">
+                      <span className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
+                        hasImage ? 'bg-tiktok-cyan/20 text-tiktok-cyan' : 'bg-tiktok-border text-tiktok-muted'
+                      }`}>
+                        {idx + 1}
+                      </span>
+                      <p className="flex-1 text-white text-sm leading-snug whitespace-pre-wrap">{displayText}</p>
+                      <button
+                        onClick={e => { e.stopPropagation(); handleCopy(displayText, idx) }}
+                        className="shrink-0 p-1.5 rounded text-tiktok-muted hover:text-white transition-colors"
+                        title="Kopieren"
+                      >
+                        {copiedIdx === idx ? <Check size={14} className="text-tiktok-cyan" /> : <Copy size={14} />}
+                      </button>
+                    </div>
+                    {slide.imagePrompt && (
+                      <div className="mt-2 pl-9 flex items-start gap-2">
+                        <Image size={11} className="text-tiktok-muted shrink-0 mt-0.5" />
+                        <p className="flex-1 text-tiktok-muted text-xs italic leading-snug">{slide.imagePrompt}</p>
+                        <button
+                          onClick={e => { e.stopPropagation(); handleGenerateSlideImage(idx) }}
+                          disabled={generatingImage}
+                          className="shrink-0 text-xs text-tiktok-muted hover:text-tiktok-red disabled:opacity-40 whitespace-nowrap"
+                          title="Bild für diese Slide generieren"
+                        >
+                          {hasImage ? 'neu' : 'Bild'}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )
               })}
-            </div>
-
-            <div className="bg-tiktok-surface border border-tiktok-border rounded-xl p-3">
-              <p className="text-xs text-tiktok-muted uppercase tracking-wider mb-1">Bild-Prompt</p>
-              <p className="text-white text-sm">{imagePrompt}</p>
             </div>
           </>
         )}
@@ -515,7 +566,7 @@ export default function Generator() {
             <TikTokPreview
               slides={slides}
               currentSlide={currentSlide}
-              imageBase64={imageBase64}
+              imageBase64={slideImages[currentSlide] || null}
             />
           </div>
         </div>
@@ -562,21 +613,23 @@ export default function Generator() {
             ))}
           </div>
           <button
-            onClick={handleGenerateImage}
-            disabled={generatingImage || !imagePrompt}
+            onClick={handleGenerateAllImages}
+            disabled={generatingImage || slides.length === 0}
             className="w-full flex items-center justify-center gap-2 py-2 bg-tiktok-red hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium rounded-lg transition-colors"
           >
             {generatingImage ? <Loader2 size={14} className="animate-spin" /> : <Image size={14} />}
-            {generatingImage ? 'Bild wird generiert...' : `Bild generieren (${imageProvider === 'gemini' ? 'Gemini' : 'OpenAI'})`}
+            {generatingImage
+              ? (imageProgress ? `Bild ${imageProgress.done}/${imageProgress.total}...` : 'Bild wird generiert...')
+              : `Alle Bilder generieren (${imageProvider === 'gemini' ? 'Gemini' : 'OpenAI'})`}
           </button>
 
-          {imageBase64 && (
+          {slideImages[currentSlide] && (
             <button
               onClick={handleSaveImage}
               className="w-full flex items-center justify-center gap-2 py-2 bg-tiktok-cyan/10 hover:bg-tiktok-cyan/20 border border-tiktok-cyan/30 text-tiktok-cyan text-xs font-medium rounded-lg transition-colors"
             >
               <Save size={14} />
-              Bild speichern
+              Aktuelles Bild speichern
             </button>
           )}
 

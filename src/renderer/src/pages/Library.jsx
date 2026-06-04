@@ -112,19 +112,21 @@ function PostsTab() {
 
   return (
     <div className="grid grid-cols-2 gap-4">
-      {posts.map(post => (
+      {posts.map(post => {
+        const thumb = (post.imagePaths && post.imagePaths.find(Boolean)) || post.imagePath
+        return (
         <div
           key={post.id}
           className="bg-tiktok-surface border border-tiktok-border rounded-xl overflow-hidden"
         >
-          {post.imagePath && (
+          {thumb && (
             <img
-              src={'file://' + post.imagePath}
+              src={'file://' + thumb}
               alt="Post Bild"
               className="w-full h-32 object-cover"
             />
           )}
-          {!post.imagePath && (
+          {!thumb && (
             <div className="w-full h-32 bg-gradient-to-br from-tiktok-red/20 to-tiktok-cyan/20 flex items-center justify-center">
               <BookOpen size={32} className="text-tiktok-muted opacity-40" />
             </div>
@@ -144,7 +146,8 @@ function PostsTab() {
             </div>
           </div>
         </div>
-      ))}
+        )
+      })}
     </div>
   )
 }

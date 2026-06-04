@@ -14,15 +14,15 @@ const POST_SCHEMA = {
         additionalProperties: false,
         properties: {
           text: { type: 'string' },
-          label: { type: 'string' }
+          label: { type: 'string' },
+          imagePrompt: { type: 'string' }
         },
-        required: ['text', 'label']
+        required: ['text', 'label', 'imagePrompt']
       }
     },
-    imagePrompt: { type: 'string' },
     hookSummary: { type: 'string' }
   },
-  required: ['slides', 'imagePrompt', 'hookSummary']
+  required: ['slides', 'hookSummary']
 }
 
 const GEMINI_SCHEMA = {
@@ -34,15 +34,15 @@ const GEMINI_SCHEMA = {
         type: SchemaType.OBJECT,
         properties: {
           text: { type: SchemaType.STRING },
-          label: { type: SchemaType.STRING }
+          label: { type: SchemaType.STRING },
+          imagePrompt: { type: SchemaType.STRING }
         },
-        required: ['text', 'label']
+        required: ['text', 'label', 'imagePrompt']
       }
     },
-    imagePrompt: { type: SchemaType.STRING },
     hookSummary: { type: SchemaType.STRING }
   },
-  required: ['slides', 'imagePrompt', 'hookSummary']
+  required: ['slides', 'hookSummary']
 }
 
 function buildPrompt(params) {
@@ -69,10 +69,15 @@ Regeln für den Text:
 - Letzter Slide: Call-to-Action mit Buchtitel
 - Text muss zum Weiterklicken zwingen
 
+Regeln für die Bild-Prompts:
+- JEDE Slide bekommt einen EIGENEN, individuellen Bild-Prompt (imagePrompt)
+- Der Bild-Prompt passt visuell und emotional genau zum Text dieser Slide
+- Die Bilder einer Slideshow sollen zusammen eine visuelle Geschichte erzählen, aber jedes Bild ist anders
+- Bild-Prompt auf Englisch, detailliert, cinematic, auf Viralität ausgelegt (9:16 Hochformat)
+
 Antworte NUR mit folgendem JSON (kein Markdown, kein Extra-Text):
 {
-  "slides": [{ "text": "...", "label": "" }],
-  "imagePrompt": "Detailed English description for DALL-E 3, cinematic, viral aesthetic",
+  "slides": [{ "text": "...", "label": "", "imagePrompt": "Detailed English image description for THIS slide, cinematic, viral, 9:16" }],
   "hookSummary": "One sentence why this is viral"
 }`
 }
@@ -99,10 +104,22 @@ function extractSlides(slidesRaw) {
       if (Array.isArray(parsed)) return parsed
       if (parsed && typeof parsed === 'object') return Object.values(parsed)
     } catch { /* fall through to lenient extraction */ }
-    // Recover complete {"text": "...", "label": "..."} objects even from truncated JSON
+    // Recover complete slide objects (with per-slide imagePrompt) even from truncated JSON
     const slides = []
-    const reBoth = /\{\s*"text"\s*:\s*"((?:[^"\\]|\\.)*)"\s*,\s*"label"\s*:\s*"((?:[^"\\]|\\.)*)"\s*\}/g
+    const reFull = /\{\s*"text"\s*:\s*"((?:[^"\\]|\\.)*)"\s*,\s*"label"\s*:\s*"((?:[^"\\]|\\.)*)"\s*,\s*"imagePrompt"\s*:\s*"((?:[^"\\]|\\.)*)"\s*\}/g
     let m
+    while ((m = reFull.exec(slidesRaw)) !== null) {
+      try {
+        slides.push({
+          text: JSON.parse('"' + m[1] + '"'),
+          label: JSON.parse('"' + m[2] + '"'),
+          imagePrompt: JSON.parse('"' + m[3] + '"')
+        })
+      } catch { /* skip malformed */ }
+    }
+    if (slides.length) return slides
+    // Fallback: text + label only
+    const reBoth = /\{\s*"text"\s*:\s*"((?:[^"\\]|\\.)*)"\s*,\s*"label"\s*:\s*"((?:[^"\\]|\\.)*)"/g
     while ((m = reBoth.exec(slidesRaw)) !== null) {
       try {
         slides.push({ text: JSON.parse('"' + m[1] + '"'), label: JSON.parse('"' + m[2] + '"') })
@@ -121,11 +138,12 @@ function extractSlides(slidesRaw) {
 
 function normalizeResult(result) {
   const slides = extractSlides(result?.slides)
-    .map(s => (typeof s === 'string' ? { text: s, label: '' } : { text: s?.text ?? '', label: s?.label ?? '' }))
+    .map(s => (typeof s === 'string'
+      ? { text: s, label: '', imagePrompt: '' }
+      : { text: s?.text ?? '', label: s?.label ?? '', imagePrompt: s?.imagePrompt ?? '' }))
     .filter(s => s.text && String(s.text).trim())
   return {
     slides,
-    imagePrompt: result?.imagePrompt || '',
     hookSummary: result?.hookSummary || ''
   }
 }
