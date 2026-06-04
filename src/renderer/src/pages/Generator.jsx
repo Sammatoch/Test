@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
 import {
   Wand2, ChevronLeft, ChevronRight, Image, FolderOpen,
-  Download, Copy, Check, Loader2, Save, Plus, Zap, Pencil, TrendingUp
+  Download, Copy, Check, Loader2, Save, Plus, Zap, Pencil, TrendingUp, BookOpen
 } from 'lucide-react'
 import TikTokPreview from '../components/TikTokPreview.jsx'
 import { renderSlideToDataURL, DEFAULT_FONT_SIZE, DIALOG_OFFSET_Y1, DIALOG_OFFSET_Y2 } from '../lib/renderSlide.js'
@@ -243,13 +243,19 @@ export default function Generator() {
     })
   }
 
+  // True when this slide depicts the book AND we have a cover to enforce
+  const slideShowsBook = (slide) => !!(slide?.showsBook && coverImage)
+
   const composeImagePrompt = (slide) => {
     const scene = slide.imagePrompt || slide.text
+    const bookNote = slideShowsBook(slide)
+      ? ` IMPORTANT: the book visible in the scene MUST be the exact book from the provided reference image(s) — same cover artwork, title and design. Do NOT invent a different book.`
+      : ''
     // Gemini Imagen only takes plain text prompts — the AI already writes consistent
     // prompts per slide, so no prefix needed. The visual style prefix is only used
     // for OpenAI where it improves anchor-based consistency.
-    if (imageProvider === 'gemini' || !visualStyle) return scene
-    return `Consistent visual style for the entire image series: ${visualStyle}. Scene for this slide: ${scene}. Vertical 9:16 portrait, cinematic.`
+    if (imageProvider === 'gemini' || !visualStyle) return scene + bookNote
+    return `Consistent visual style for the entire image series: ${visualStyle}. Scene for this slide: ${scene}. Vertical 9:16 portrait, cinematic.${bookNote}`
   }
 
   const composeCoverSlidePrompt = () => {
@@ -323,8 +329,8 @@ export default function Generator() {
       }
       const normalized = slidesArray
         .map(s => (typeof s === 'string'
-          ? { text: s, text2: '', label: '', imagePrompt: '' }
-          : { text: s?.text ?? '', text2: s?.text2 ?? '', label: s?.label ?? '', imagePrompt: s?.imagePrompt ?? '' }))
+          ? { text: s, text2: '', label: '', imagePrompt: '', showsBook: false }
+          : { text: s?.text ?? '', text2: s?.text2 ?? '', label: s?.label ?? '', imagePrompt: s?.imagePrompt ?? '', showsBook: !!s?.showsBook }))
         .filter(s => s.text && s.text.trim())
       if (!normalized.length) {
         setError('Die KI hat keine verwertbaren Slides zurückgegeben. Antwort: ' + JSON.stringify(result).slice(0, 300))
@@ -398,8 +404,10 @@ export default function Generator() {
         }
         const prompt = composeImagePrompt(slides[i])
         // Gemini Imagen doesn't support reference images — consistency comes from the AI prompts
-        const refs = imageProvider === 'gemini' ? [] : [...referenceImages]
+        let refs = imageProvider === 'gemini' ? [] : [...referenceImages]
         if (imageProvider !== 'gemini' && consistencyMode && anchor) refs.unshift(anchor)
+        // If this slide shows the book, prepend the cover so the rendered book matches the reference
+        if (slideShowsBook(slides[i])) refs = [...coverRefs(), ...refs]
         const b64 = await window.api.generate.image(prompt, imageProvider, refs.length ? refs : null)
         images[i] = b64
         if (consistencyMode && i === 0) anchor = b64
@@ -440,11 +448,13 @@ export default function Generator() {
     setError('')
     setGeneratingSlideIdx(idx)
     try {
-      const refs = imageProvider === 'gemini' ? [] : [...referenceImages]
+      let refs = imageProvider === 'gemini' ? [] : [...referenceImages]
       if (imageProvider !== 'gemini' && consistencyMode) {
         const sibling = slideImages.find((img, i) => img && i !== idx)
         if (sibling) refs.unshift(sibling)
       }
+      // If this slide shows the book, prepend the cover so the rendered book matches the reference
+      if (slideShowsBook(slides[idx])) refs = [...coverRefs(), ...refs]
       const b64 = await window.api.generate.image(prompt, imageProvider, refs.length ? refs : null)
       setSlideImages(prev => {
         const next = [...prev]
@@ -920,6 +930,11 @@ export default function Generator() {
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
+                        {slideShowsBook(slide) && !isCoverSlide(idx) && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 mb-1 rounded bg-tiktok-cyan/10 border border-tiktok-cyan/30 text-tiktok-cyan text-[10px] font-medium">
+                            <BookOpen size={10} /> Buch aus Referenz
+                          </span>
+                        )}
                         {slide.imagePrompt && (
                           <p className="text-tiktok-muted text-xs italic leading-snug line-clamp-2">{slide.imagePrompt}</p>
                         )}

@@ -16,9 +16,10 @@ const POST_SCHEMA = {
           text: { type: 'string' },
           text2: { type: 'string' },
           label: { type: 'string' },
-          imagePrompt: { type: 'string' }
+          imagePrompt: { type: 'string' },
+          showsBook: { type: 'boolean' }
         },
-        required: ['text', 'text2', 'label', 'imagePrompt']
+        required: ['text', 'text2', 'label', 'imagePrompt', 'showsBook']
       }
     },
     visualStyle: { type: 'string' },
@@ -38,9 +39,10 @@ const GEMINI_SCHEMA = {
           text: { type: SchemaType.STRING },
           text2: { type: SchemaType.STRING },
           label: { type: SchemaType.STRING },
-          imagePrompt: { type: SchemaType.STRING }
+          imagePrompt: { type: SchemaType.STRING },
+          showsBook: { type: SchemaType.BOOLEAN }
         },
-        required: ['text', 'text2', 'label', 'imagePrompt']
+        required: ['text', 'text2', 'label', 'imagePrompt', 'showsBook']
       }
     },
     visualStyle: { type: SchemaType.STRING },
@@ -74,8 +76,8 @@ function buildPrompt(params) {
 - Letzter Slide: klarer KAUF-Aufruf (Call-to-Action), der konkret zum Kauf des Buchs "${bookTitle}" anregt`
 
   const jsonExample = isDialog
-    ? `{ "text": "Person A Text...", "text2": "Person B Antwort...", "label": "", "imagePrompt": "..." }`
-    : `{ "text": "Slide-Text...", "text2": "", "label": "", "imagePrompt": "..." }`
+    ? `{ "text": "Person A Text...", "text2": "Person B Antwort...", "label": "", "imagePrompt": "...", "showsBook": false }`
+    : `{ "text": "Slide-Text...", "text2": "", "label": "", "imagePrompt": "...", "showsBook": false }`
 
   return `Du bist ein viraler TikTok Content Creator für Sachbücher.
 Erstelle einen emotionalen TikTok-Slideshow-Post für das Buch "${bookTitle}" in der Nische "${niche}".
@@ -99,6 +101,12 @@ Regeln für die Bild-Prompts:
 - WICHTIG: Jeder imagePrompt MUSS exakt zum definierten visualStyle passen (gleiche Figur, gleiches Setting, gleiche Farben, gleiches Licht) — es soll wie dieselbe Bildserie aussehen
 - Es ändert sich nur die konkrete Szene/Handlung passend zum Text dieser Slide
 - Bild-Prompt auf Englisch, detailliert, cinematic, 9:16 Hochformat${isDialog ? '\n- DIALOG-MODUS: Jedes Bild MUSS ZWEI Personen zeigen — Person A im oberen Bildbereich, Person B im unteren Bildbereich sichtbar' : ''}
+
+Regel für "showsBook" (Buch im Bild):
+- Setze "showsBook" = true für JEDE Slide, in deren Szene ein Buch zu sehen ist (z.B. jemand hält ein Buch, liest darin, das Buch liegt auf dem Tisch)
+- Bei diesen Slides: nenne das Buch im imagePrompt generisch als "the book" — beschreibe NICHT eine erfundene Buchgestaltung (Titel/Cover). Das echte Cover wird separat als Referenzbild eingefügt.
+- Setze "showsBook" = false, wenn KEIN Buch in der Szene vorkommt
+- Die letzte Slide (Kauf-Aufruf) zeigt typischerweise das Buch → showsBook = true
 
 Antworte NUR mit folgendem JSON (kein Markdown, kein Extra-Text):
 {
@@ -165,8 +173,8 @@ function extractSlides(slidesRaw) {
 function normalizeResult(result) {
   const slides = extractSlides(result?.slides)
     .map(s => (typeof s === 'string'
-      ? { text: s, text2: '', label: '', imagePrompt: '' }
-      : { text: s?.text ?? '', text2: s?.text2 ?? '', label: s?.label ?? '', imagePrompt: s?.imagePrompt ?? '' }))
+      ? { text: s, text2: '', label: '', imagePrompt: '', showsBook: false }
+      : { text: s?.text ?? '', text2: s?.text2 ?? '', label: s?.label ?? '', imagePrompt: s?.imagePrompt ?? '', showsBook: !!s?.showsBook }))
     .filter(s => s.text && String(s.text).trim())
   return {
     slides,
