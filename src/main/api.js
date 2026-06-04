@@ -89,6 +89,46 @@ function parseAIResponse(text) {
   return JSON.parse(cleaned)
 }
 
+function extractSlides(slidesRaw) {
+  if (Array.isArray(slidesRaw)) return slidesRaw
+  if (slidesRaw && typeof slidesRaw === 'object') return Object.values(slidesRaw)
+  if (typeof slidesRaw === 'string') {
+    try {
+      const parsed = JSON.parse(slidesRaw)
+      if (Array.isArray(parsed)) return parsed
+      if (parsed && typeof parsed === 'object') return Object.values(parsed)
+    } catch { /* fall through to lenient extraction */ }
+    // Recover complete {"text": "...", "label": "..."} objects even from truncated JSON
+    const slides = []
+    const reBoth = /\{\s*"text"\s*:\s*"((?:[^"\\]|\\.)*)"\s*,\s*"label"\s*:\s*"((?:[^"\\]|\\.)*)"\s*\}/g
+    let m
+    while ((m = reBoth.exec(slidesRaw)) !== null) {
+      try {
+        slides.push({ text: JSON.parse('"' + m[1] + '"'), label: JSON.parse('"' + m[2] + '"') })
+      } catch { /* skip malformed */ }
+    }
+    if (slides.length) return slides
+    // Last resort: grab any "text": "..." values
+    const reText = /"text"\s*:\s*"((?:[^"\\]|\\.)*)"/g
+    while ((m = reText.exec(slidesRaw)) !== null) {
+      try { slides.push({ text: JSON.parse('"' + m[1] + '"'), label: '' }) } catch { /* skip */ }
+    }
+    return slides
+  }
+  return []
+}
+
+function normalizeResult(result) {
+  const slides = extractSlides(result?.slides)
+    .map(s => (typeof s === 'string' ? { text: s, label: '' } : { text: s?.text ?? '', label: s?.label ?? '' }))
+    .filter(s => s.text && String(s.text).trim())
+  return {
+    slides,
+    imagePrompt: result?.imagePrompt || '',
+    hookSummary: result?.hookSummary || ''
+  }
+}
+
 export async function generateContent(params, settings) {
   const { provider } = params
   const prompt = buildPrompt(params)
@@ -98,14 +138,14 @@ export async function generateContent(params, settings) {
     const client = new Anthropic({ apiKey: settings.anthropicKey })
     const msg = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 2048,
+      max_tokens: 4096,
       tools: [{ name: 'create_tiktok_post', description: 'Erstellt einen TikTok-Slideshow-Post', input_schema: POST_SCHEMA }],
       tool_choice: { type: 'tool', name: 'create_tiktok_post' },
       messages: [{ role: 'user', content: prompt }]
     })
     const toolUse = msg.content.find(b => b.type === 'tool_use')
     if (!toolUse) throw new Error('Keine gültige Antwort von Claude erhalten')
-    return toolUse.input
+    return normalizeResult(toolUse.input)
   }
 
   if (provider === 'openai') {
@@ -114,13 +154,13 @@ export async function generateContent(params, settings) {
     const res = await client.chat.completions.create({
       model: 'gpt-4o',
       messages: [{ role: 'user', content: prompt }],
-      max_tokens: 2048,
+      max_tokens: 4096,
       response_format: {
         type: 'json_schema',
         json_schema: { name: 'tiktok_post', strict: true, schema: POST_SCHEMA }
       }
     })
-    return parseAIResponse(res.choices[0].message.content)
+    return normalizeResult(parseAIResponse(res.choices[0].message.content))
   }
 
   if (provider === 'gemini') {
@@ -131,7 +171,7 @@ export async function generateContent(params, settings) {
       generationConfig: { responseMimeType: 'application/json', responseSchema: GEMINI_SCHEMA }
     })
     const result = await model.generateContent(prompt)
-    return parseAIResponse(result.response.text())
+    return normalizeResult(parseAIResponse(result.response.text()))
   }
 
   throw new Error(`Unbekannter Provider: ${provider}`)
