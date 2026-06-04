@@ -64,6 +64,7 @@ export default function Generator() {
 
   const [generating, setGenerating] = useState(false)
   const [generatingImage, setGeneratingImage] = useState(false)
+  const [generatingSlideIdx, setGeneratingSlideIdx] = useState(null)
   const [exporting, setExporting] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -194,7 +195,7 @@ export default function Generator() {
     const prompt = slides[idx]?.imagePrompt || slides[idx]?.text
     if (!prompt) return
     setError('')
-    setGeneratingImage(true)
+    setGeneratingSlideIdx(idx)
     try {
       const b64 = await window.api.generate.image(prompt, imageProvider)
       setSlideImages(prev => {
@@ -205,7 +206,7 @@ export default function Generator() {
     } catch (e) {
       setError(e.message)
     } finally {
-      setGeneratingImage(false)
+      setGeneratingSlideIdx(null)
     }
   }
 
@@ -536,20 +537,41 @@ export default function Generator() {
                         {copiedIdx === idx ? <Check size={14} className="text-tiktok-cyan" /> : <Copy size={14} />}
                       </button>
                     </div>
-                    {slide.imagePrompt && (
-                      <div className="mt-2 pl-9 flex items-start gap-2">
-                        <Image size={11} className="text-tiktok-muted shrink-0 mt-0.5" />
-                        <p className="flex-1 text-tiktok-muted text-xs italic leading-snug">{slide.imagePrompt}</p>
+                    <div className="mt-2 pl-9 flex items-start gap-2">
+                      {hasImage ? (
+                        <img
+                          src={'data:image/png;base64,' + slideImages[idx]}
+                          alt=""
+                          className="w-10 h-[71px] object-cover rounded-md border border-tiktok-border shrink-0"
+                        />
+                      ) : (
+                        <div className="w-10 h-[71px] rounded-md border border-dashed border-tiktok-border flex items-center justify-center shrink-0">
+                          <Image size={14} className="text-tiktok-muted opacity-50" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        {slide.imagePrompt && (
+                          <p className="text-tiktok-muted text-xs italic leading-snug line-clamp-2">{slide.imagePrompt}</p>
+                        )}
                         <button
                           onClick={e => { e.stopPropagation(); handleGenerateSlideImage(idx) }}
-                          disabled={generatingImage}
-                          className="shrink-0 text-xs text-tiktok-muted hover:text-tiktok-red disabled:opacity-40 whitespace-nowrap"
+                          disabled={generatingImage || generatingSlideIdx !== null}
+                          className={`mt-1 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                            hasImage
+                              ? 'border border-tiktok-border text-tiktok-muted hover:text-white hover:border-white/30'
+                              : 'bg-tiktok-red/10 border border-tiktok-red/30 text-tiktok-red hover:bg-tiktok-red/20'
+                          }`}
                           title="Bild für diese Slide generieren"
                         >
-                          {hasImage ? 'neu' : 'Bild'}
+                          {generatingSlideIdx === idx
+                            ? <Loader2 size={12} className="animate-spin" />
+                            : <Image size={12} />}
+                          {generatingSlideIdx === idx
+                            ? 'Generiere...'
+                            : hasImage ? 'Neu generieren' : 'Bild generieren'}
                         </button>
                       </div>
-                    )}
+                    </div>
                   </div>
                 )
               })}
@@ -614,7 +636,7 @@ export default function Generator() {
           </div>
           <button
             onClick={handleGenerateAllImages}
-            disabled={generatingImage || slides.length === 0}
+            disabled={generatingImage || generatingSlideIdx !== null || slides.length === 0}
             className="w-full flex items-center justify-center gap-2 py-2 bg-tiktok-red hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium rounded-lg transition-colors"
           >
             {generatingImage ? <Loader2 size={14} className="animate-spin" /> : <Image size={14} />}
