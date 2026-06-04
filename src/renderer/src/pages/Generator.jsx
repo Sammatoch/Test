@@ -111,7 +111,7 @@ export default function Generator() {
   const [backCoverImage, setBackCoverImage] = useState(null)
   const [useCoverLastSlide, setUseCoverLastSlide] = useState(true)
   const [indexedTexts, setIndexedTexts] = useState([])
-  const [useIndexing, setUseIndexing] = useState(false)
+  const [useIndexing, setUseIndexing] = useState(true)
   const [copiedIdx, setCopiedIdx] = useState(null)
   const [editingIdx, setEditingIdx] = useState(null)
   const [editingIdx2, setEditingIdx2] = useState(null)
@@ -154,6 +154,8 @@ export default function Generator() {
         setImageProvider(saved.imageProvider ?? 'openai')
         if (saved.globalFontSize) setGlobalFontSize(saved.globalFontSize)
         if (typeof saved.useCoverLastSlide === 'boolean') setUseCoverLastSlide(saved.useCoverLastSlide)
+        const indexingOn = typeof saved.useIndexing === 'boolean' ? saved.useIndexing : true
+        setUseIndexing(indexingOn)
         // Restore generated text (images are intentionally not persisted)
         if (Array.isArray(saved.slides) && saved.slides.length) {
           setSlides(saved.slides)
@@ -165,6 +167,7 @@ export default function Generator() {
           )
           setHookSummary(saved.hookSummary ?? '')
           setVisualStyle(saved.visualStyle ?? '')
+          if (indexingOn) computeIndexed(saved.slides).then(setIndexedTexts)
         }
       } else if (s) {
         setBookTitle(s.defaultBookTitle || '')
@@ -185,11 +188,11 @@ export default function Generator() {
     if (!hydrated.current) return
     saveSession({
       bookTitle, niche, situation, hook, perspective, language, provider, imageProvider, globalFontSize,
-      useCoverLastSlide,
+      useCoverLastSlide, useIndexing,
       // Text only — strip nothing, slides hold only text/label/imagePrompt
       slides, hookSummary, visualStyle, textSettings
     })
-  }, [bookTitle, niche, situation, hook, perspective, language, provider, imageProvider, globalFontSize, useCoverLastSlide, slides, hookSummary, visualStyle, textSettings])
+  }, [bookTitle, niche, situation, hook, perspective, language, provider, imageProvider, globalFontSize, useCoverLastSlide, useIndexing, slides, hookSummary, visualStyle, textSettings])
 
   useEffect(() => {
     if (location.state?.hook) setHook(location.state.hook)
@@ -344,6 +347,8 @@ export default function Generator() {
       ))
       setHookSummary(result?.hookSummary || '')
       setVisualStyle(result?.visualStyle || '')
+      // TikTok-Indexing is on by default — apply it to the freshly generated texts
+      if (useIndexing) setIndexedTexts(await computeIndexed(normalized))
     } catch (e) {
       setError(e.message)
     } finally {
@@ -351,12 +356,15 @@ export default function Generator() {
     }
   }
 
+  // Compute TikTok-indexed versions of the given slides' texts
+  const computeIndexed = async (slidesList) => {
+    if (!slidesList?.length) return []
+    return Promise.all(slidesList.map(s => window.api.generate.tiktokText(s.text)))
+  }
+
   const handleApplyIndexing = async () => {
     if (!slides.length) return
-    const indexed = await Promise.all(
-      slides.map(s => window.api.generate.tiktokText(s.text))
-    )
-    setIndexedTexts(indexed)
+    setIndexedTexts(await computeIndexed(slides))
     setUseIndexing(true)
   }
 
