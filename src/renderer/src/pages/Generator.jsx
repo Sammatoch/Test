@@ -204,6 +204,12 @@ export default function Generator() {
     return `Consistent visual style for the entire image series: ${visualStyle}. Scene for this slide: ${scene}. Vertical 9:16 portrait, cinematic.`
   }
 
+  const composeCoverSlidePrompt = () => {
+    const scene = `A physical copy of the book "${bookTitle}" lying naturally in the scene — placed on a wooden surface or held in hands — the book cover clearly visible and recognizable as the main subject, warm cinematic lighting, 9:16 portrait`
+    if (visualStyle) return `Consistent with overall visual style: ${visualStyle}. Final slide scene: ${scene}`
+    return scene
+  }
+
   const handleSelectRefFolder = async (folderPath) => {
     setSelectedRefFolder(folderPath)
     setReferenceImages([])
@@ -326,9 +332,16 @@ export default function Generator() {
       const images = [...slideImages]
       let anchor = null
       for (let i = 0; i < slides.length; i++) {
-        // Last slide always shows the book cover (no AI generation, no extra cost)
+        // Last slide: with OpenAI generate a natural scene with the book in it;
+        // Gemini doesn't support reference images so use the cover directly.
         if (isCoverSlide(i)) {
-          images[i] = coverImage
+          if (imageProvider === 'openai') {
+            const prompt = composeCoverSlidePrompt()
+            const b64 = await window.api.generate.image(prompt, 'openai', [coverImage])
+            images[i] = b64
+          } else {
+            images[i] = coverImage
+          }
           setSlideImages([...images])
           setImageProgress({ done: i + 1, total: slides.length })
           continue
@@ -357,13 +370,23 @@ export default function Generator() {
 
   const handleGenerateSlideImage = async (idx) => {
     if (!slides[idx]) return
-    // Last slide uses the book cover directly
+    // Last slide: OpenAI generates a natural scene with the book; Gemini uses cover directly
     if (isCoverSlide(idx)) {
-      setSlideImages(prev => {
-        const next = [...prev]
-        next[idx] = coverImage
-        return next
-      })
+      if (imageProvider === 'openai') {
+        setError('')
+        setGeneratingSlideIdx(idx)
+        try {
+          const prompt = composeCoverSlidePrompt()
+          const b64 = await window.api.generate.image(prompt, 'openai', [coverImage])
+          setSlideImages(prev => { const next = [...prev]; next[idx] = b64; return next })
+        } catch (e) {
+          setError(e.message)
+        } finally {
+          setGeneratingSlideIdx(null)
+        }
+      } else {
+        setSlideImages(prev => { const next = [...prev]; next[idx] = coverImage; return next })
+      }
       return
     }
     const prompt = composeImagePrompt(slides[idx])
@@ -894,8 +917,8 @@ export default function Generator() {
           </div>
 
           <div className="flex items-center justify-between py-0.5">
-            <span className="text-xs text-tiktok-muted" title="Letzte Slide zeigt automatisch dein Buchcover">
-              Letzte Slide = Buchcover
+            <span className="text-xs text-tiktok-muted" title="Mit OpenAI wird eine natürliche Szene mit dem Buch generiert; mit Gemini wird das Cover direkt verwendet">
+              Letzte Slide mit Buchcover
             </span>
             <button
               onClick={() => setUseCoverLastSlide(v => !v)}
@@ -911,7 +934,13 @@ export default function Generator() {
               />
             </button>
           </div>
-          {!coverImage && (
+          {coverImage ? (
+            <p className="text-[11px] text-tiktok-muted leading-snug">
+              {imageProvider === 'openai'
+                ? 'OpenAI generiert eine Szene, in der das Buch natürlich liegt/gehalten wird.'
+                : 'Gemini: Das Cover wird direkt als Hintergrundbild verwendet.'}
+            </p>
+          ) : (
             <p className="text-[11px] text-tiktok-muted leading-snug">
               Buchcover in den Einstellungen festlegen, um es als letzte Slide zu nutzen.
             </p>
