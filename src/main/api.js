@@ -212,13 +212,25 @@ function isRateLimit(e) {
   return status === 429 || /\b429\b|RESOURCE_EXHAUSTED|rate.?limit|too many requests/i.test(msg)
 }
 
+// Hard quota/billing errors are NOT transient — retrying won't help, fail fast
+function isHardQuota(e) {
+  const msg = String(e?.error?.message || e?.message || e || '')
+  return /insufficient_quota|billing|hard limit|exceeded your current quota|quota exceeded/i.test(msg)
+}
+
+function errorDetail(e) {
+  const status = e?.status ?? e?.code ?? e?.error?.code
+  const msg = e?.error?.message || e?.message || (typeof e === 'string' ? e : '')
+  return [status ? `Status ${status}` : '', msg].filter(Boolean).join(': ').slice(0, 500)
+}
+
 async function withRetry(fn, { retries = 3, baseDelay = 5000 } = {}) {
   let attempt = 0
   for (;;) {
     try {
       return await fn()
     } catch (e) {
-      if (!isRateLimit(e) || attempt >= retries) throw e
+      if (!isRateLimit(e) || isHardQuota(e) || attempt >= retries) throw e
       const delay = baseDelay * Math.pow(2, attempt)
       await new Promise(r => setTimeout(r, delay))
       attempt++
@@ -283,7 +295,10 @@ export async function generateImage(prompt, settings, imageProvider = 'openai', 
     return await generateImageOpenAI(prompt, settings, referenceImages)
   } catch (e) {
     if (isRateLimit(e)) {
-      throw new Error('Limit erreicht: Der Anbieter hat das Kontingent/Rate-Limit überschritten (429). Bitte kurz warten und erneut versuchen, oder dein Kontingent/Billing beim Anbieter prüfen.')
+      const hint = imageProvider === 'gemini'
+        ? 'Wichtig: Imagen (Gemini) hat ein EIGENES Tages-/Minuten-Kontingent, das unabhängig von deinem Guthaben ist. Imagen ist nur im kostenpflichtigen Tier verfügbar — prüfe in Google AI Studio / Cloud Console, ob Imagen für deinen Tarif aktiviert ist und freies Kontingent hat. (Guthaben bei OpenAI hilft hier nicht.)'
+        : 'Wichtig: Ein OpenAI-429 bedeutet oft „insufficient_quota" (Projekt-/Usage-Limit), nicht zwingend zu viele Anfragen. Prüfe Billing und die Usage-Limits deines Projekts im OpenAI-Dashboard.'
+      throw new Error(`Kontingent/Limit erreicht (429). ${hint}\n\nOriginalmeldung des Anbieters: ${errorDetail(e)}`)
     }
     throw e
   }
