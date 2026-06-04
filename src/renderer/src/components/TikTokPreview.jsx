@@ -12,7 +12,10 @@ export default function TikTokPreview({
   fontSize = DEFAULT_FONT_SIZE,
   offsetX = 0,
   offsetY = 0,
-  onOffsetChange
+  offsetX2 = 0,
+  offsetY2 = 0,
+  onOffsetChange,
+  onOffset2Change
 }) {
   const canvasRef = useRef(null)
   const dragRef = useRef(null)
@@ -23,28 +26,44 @@ export default function TikTokPreview({
     const ctx = canvas.getContext('2d')
     const slide = slides?.[currentSlide] || slides?.[0]
     const text = slide?.text || ''
+    const text2 = slide?.text2 || ''
     let cancelled = false
 
     loadImage(imageBase64).then(img => {
       if (cancelled) return
-      drawSlide(ctx, { text, index: currentSlide, total: slides?.length || 0, img, fontSize, offsetX, offsetY })
+      drawSlide(ctx, {
+        text, text2,
+        index: currentSlide, total: slides?.length || 0, img,
+        fontSize, offsetX, offsetY, offsetX2, offsetY2
+      })
     })
 
     return () => { cancelled = true }
-  }, [slides, currentSlide, imageBase64, fontSize, offsetX, offsetY])
+  }, [slides, currentSlide, imageBase64, fontSize, offsetX, offsetY, offsetX2, offsetY2])
 
   const handlePointerDown = (e) => {
-    if (!onOffsetChange) return
+    if (!onOffsetChange && !onOffset2Change) return
     try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* noop */ }
-    dragRef.current = { startX: e.clientX, startY: e.clientY, baseX: offsetX, baseY: offsetY }
+    // Top half → drag text1, bottom half → drag text2 (when text2 exists)
+    const slide = slides?.[currentSlide]
+    const hasText2 = !!slide?.text2
+    const inBottomHalf = e.nativeEvent.offsetY > DISPLAY_H / 2
+    if (hasText2 && inBottomHalf && onOffset2Change) {
+      dragRef.current = { startX: e.clientX, startY: e.clientY, baseX: offsetX2, baseY: offsetY2, which: 2 }
+    } else if (onOffsetChange) {
+      dragRef.current = { startX: e.clientX, startY: e.clientY, baseX: offsetX, baseY: offsetY, which: 1 }
+    }
   }
 
   const handlePointerMove = (e) => {
     if (!dragRef.current) return
-    // Convert displayed-pixel movement into canvas pixels (canvas is CSS-scaled by SCALE)
     const dx = (e.clientX - dragRef.current.startX) / SCALE
     const dy = (e.clientY - dragRef.current.startY) / SCALE
-    onOffsetChange(Math.round(dragRef.current.baseX + dx), Math.round(dragRef.current.baseY + dy))
+    if (dragRef.current.which === 2) {
+      onOffset2Change(Math.round(dragRef.current.baseX + dx), Math.round(dragRef.current.baseY + dy))
+    } else {
+      onOffsetChange(Math.round(dragRef.current.baseX + dx), Math.round(dragRef.current.baseY + dy))
+    }
   }
 
   const endDrag = (e) => {
@@ -54,35 +73,55 @@ export default function TikTokPreview({
     dragRef.current = null
   }
 
+  const slide = slides?.[currentSlide]
+  const hasText2 = !!slide?.text2
+  const canDrag = onOffsetChange || onOffset2Change
+
   return (
-    <div
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={endDrag}
-      onPointerCancel={endDrag}
-      style={{
-        width: DISPLAY_W,
-        height: DISPLAY_H,
-        overflow: 'hidden',
-        borderRadius: 16,
-        position: 'relative',
-        flexShrink: 0,
-        cursor: onOffsetChange ? 'move' : 'default',
-        touchAction: 'none'
-      }}
-    >
-      <canvas
-        ref={canvasRef}
-        width={CANVAS_W}
-        height={CANVAS_H}
+    <div style={{ position: 'relative', width: DISPLAY_W, flexShrink: 0 }}>
+      <div
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
         style={{
-          width: CANVAS_W,
-          height: CANVAS_H,
-          transform: `scale(${SCALE})`,
-          transformOrigin: 'top left',
-          display: 'block'
+          width: DISPLAY_W,
+          height: DISPLAY_H,
+          overflow: 'hidden',
+          borderRadius: 16,
+          position: 'relative',
+          cursor: canDrag ? 'move' : 'default',
+          touchAction: 'none'
         }}
-      />
+      >
+        <canvas
+          ref={canvasRef}
+          width={CANVAS_W}
+          height={CANVAS_H}
+          style={{
+            width: CANVAS_W,
+            height: CANVAS_H,
+            transform: `scale(${SCALE})`,
+            transformOrigin: 'top left',
+            display: 'block'
+          }}
+        />
+        {/* Dialog drag-zone hint overlays */}
+        {hasText2 && canDrag && (
+          <>
+            <div style={{
+              position: 'absolute', top: 6, left: 8,
+              fontSize: 10, color: 'rgba(255,255,255,0.5)',
+              pointerEvents: 'none', fontWeight: 600, letterSpacing: 1
+            }}>A</div>
+            <div style={{
+              position: 'absolute', bottom: 6, left: 8,
+              fontSize: 10, color: 'rgba(255,255,255,0.5)',
+              pointerEvents: 'none', fontWeight: 600, letterSpacing: 1
+            }}>B</div>
+          </>
+        )}
+      </div>
     </div>
   )
 }

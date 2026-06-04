@@ -1,6 +1,9 @@
 export const CANVAS_W = 1080
 export const CANVAS_H = 1920
 export const DEFAULT_FONT_SIZE = 85
+// Default Y offsets for dialog mode (canvas pixels from center)
+export const DIALOG_OFFSET_Y1 = -380
+export const DIALOG_OFFSET_Y2 = 380
 
 function wrapText(ctx, text, maxWidth) {
   const words = text.split(' ')
@@ -19,7 +22,41 @@ function wrapText(ctx, text, maxWidth) {
   return lines
 }
 
-export function drawSlide(ctx, { text, index, total, img, fontSize = DEFAULT_FONT_SIZE, offsetX = 0, offsetY = 0 }) {
+function drawTextBlock(ctx, text, { fontSize, offsetX, offsetY, maxWidth }) {
+  const rawLines = text.split('\n')
+  const allLines = []
+  for (const rawLine of rawLines) {
+    const wrapped = wrapText(ctx, rawLine, maxWidth)
+    allLines.push(...wrapped)
+  }
+  const lineHeight = fontSize * 1.3
+  const totalHeight = allLines.length * lineHeight
+  const centerX = CANVAS_W / 2 + offsetX
+  const startY = CANVAS_H / 2 - totalHeight / 2 + fontSize + offsetY
+
+  ctx.shadowColor = 'rgba(0,0,0,0.9)'
+  ctx.shadowBlur = 20
+  ctx.shadowOffsetX = 3
+  ctx.shadowOffsetY = 3
+
+  allLines.forEach((line, i) => {
+    ctx.fillStyle = '#ffffff'
+    ctx.fillText(line, centerX, startY + i * lineHeight)
+  })
+
+  ctx.shadowColor = 'transparent'
+  ctx.shadowBlur = 0
+  ctx.shadowOffsetX = 0
+  ctx.shadowOffsetY = 0
+}
+
+export function drawSlide(ctx, {
+  text, text2,
+  index, total, img,
+  fontSize = DEFAULT_FONT_SIZE,
+  offsetX = 0, offsetY = 0,
+  offsetX2 = 0, offsetY2 = 0
+}) {
   ctx.clearRect(0, 0, CANVAS_W, CANVAS_H)
 
   if (img) {
@@ -62,32 +99,23 @@ export function drawSlide(ctx, { text, index, total, img, fontSize = DEFAULT_FON
   ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, Arial, sans-serif`
   ctx.textAlign = 'center'
 
-  const rawLines = text.split('\n')
-  const allLines = []
-  for (const rawLine of rawLines) {
-    const wrapped = wrapText(ctx, rawLine, maxWidth)
-    allLines.push(...wrapped)
+  drawTextBlock(ctx, text, { fontSize, offsetX, offsetY, maxWidth })
+
+  if (text2) {
+    // Separator line between the two speakers
+    const sepY = CANVAS_H / 2 + (offsetY + offsetY2) / 2
+    ctx.save()
+    ctx.strokeStyle = 'rgba(255,255,255,0.18)'
+    ctx.lineWidth = 2
+    ctx.setLineDash([12, 10])
+    ctx.beginPath()
+    ctx.moveTo(padding * 2, sepY)
+    ctx.lineTo(CANVAS_W - padding * 2, sepY)
+    ctx.stroke()
+    ctx.restore()
+
+    drawTextBlock(ctx, text2, { fontSize, offsetX: offsetX2, offsetY: offsetY2, maxWidth })
   }
-
-  const lineHeight = fontSize * 1.3
-  const totalHeight = allLines.length * lineHeight
-  const centerX = CANVAS_W / 2 + offsetX
-  const startY = CANVAS_H / 2 - totalHeight / 2 + fontSize + offsetY
-
-  ctx.shadowColor = 'rgba(0,0,0,0.9)'
-  ctx.shadowBlur = 20
-  ctx.shadowOffsetX = 3
-  ctx.shadowOffsetY = 3
-
-  allLines.forEach((line, i) => {
-    ctx.fillStyle = '#ffffff'
-    ctx.fillText(line, centerX, startY + i * lineHeight)
-  })
-
-  ctx.shadowColor = 'transparent'
-  ctx.shadowBlur = 0
-  ctx.shadowOffsetX = 0
-  ctx.shadowOffsetY = 0
 
   if (total > 1) {
     const dotR = 18

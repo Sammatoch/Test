@@ -14,10 +14,11 @@ const POST_SCHEMA = {
         additionalProperties: false,
         properties: {
           text: { type: 'string' },
+          text2: { type: 'string' },
           label: { type: 'string' },
           imagePrompt: { type: 'string' }
         },
-        required: ['text', 'label', 'imagePrompt']
+        required: ['text', 'text2', 'label', 'imagePrompt']
       }
     },
     visualStyle: { type: 'string' },
@@ -35,10 +36,11 @@ const GEMINI_SCHEMA = {
         type: SchemaType.OBJECT,
         properties: {
           text: { type: SchemaType.STRING },
+          text2: { type: SchemaType.STRING },
           label: { type: SchemaType.STRING },
           imagePrompt: { type: SchemaType.STRING }
         },
-        required: ['text', 'label', 'imagePrompt']
+        required: ['text', 'text2', 'label', 'imagePrompt']
       }
     },
     visualStyle: { type: SchemaType.STRING },
@@ -55,6 +57,25 @@ function buildPrompt(params) {
       ? 'Wechselnde Perspektiven (Dialog zwischen zwei Personen)'
       : 'Eine Perspektive (innerer Monolog)'
 
+  const isDialog = perspective === 'alternating'
+
+  const textRules = isDialog
+    ? `Regeln für den Text (DIALOG-Modus — PFLICHT):
+- 6-8 Slides, jede hat ZWEI Sprechertexte
+- "text": Aussage von Person A (erscheint OBEN im Bild) — max. 2 kurze, knappe Zeilen
+- "text2": Reaktion/Antwort von Person B (erscheint UNTEN im Bild) — max. 2 kurze, knappe Zeilen
+- Beide Texte zusammen bauen Spannung auf — kurz, direkt, emotional, kein "A:" / "B:"-Prefix
+- Letzter Slide: text = Kauf-Aufruf von Person A, text2 = Bestätigung/Handlungsaufforderung von Person B`
+    : `Regeln für den Text (MONOLOG-Modus):
+- 6-10 kurze Slides, jede max. 2-3 Zeilen in "text"
+- "text2" IMMER leer lassen: ""
+- Sehr kurze, prägnante Sätze die emotional triggern
+- Letzter Slide: klarer KAUF-Aufruf (Call-to-Action), der konkret zum Kauf des Buchs "${bookTitle}" anregt`
+
+  const jsonExample = isDialog
+    ? `{ "text": "Person A Text...", "text2": "Person B Antwort...", "label": "", "imagePrompt": "..." }`
+    : `{ "text": "Slide-Text...", "text2": "", "label": "", "imagePrompt": "..." }`
+
   return `Du bist ein viraler TikTok Content Creator für Sachbücher.
 Erstelle einen emotionalen TikTok-Slideshow-Post für das Buch "${bookTitle}" in der Nische "${niche}".
 
@@ -64,12 +85,7 @@ Perspektive: ${perspectiveLabel}
 Ausgabe-Sprache: ${languageLabel}
 WICHTIG: Buchtitel immer in der Originalsprache: "${bookTitle}"
 
-Regeln für den Text:
-- 6-10 kurze Slides, jede max. 2-3 Zeilen
-- Sehr kurze, prägnante Sätze die emotional triggern
-- Dialoge erzeugen starke Spannung
-- Letzter Slide: klarer KAUF-Aufruf (Call-to-Action), der konkret zum Kauf des Buchs "${bookTitle}" anregt
-- Text muss zum Weiterklicken zwingen
+${textRules}
 
 Regeln für den durchgängigen Bild-Stil (visualStyle):
 - Definiere EINEN einzigen, durchgängigen visuellen Stil für die GESAMTE Slideshow
@@ -85,7 +101,7 @@ Regeln für die Bild-Prompts:
 
 Antworte NUR mit folgendem JSON (kein Markdown, kein Extra-Text):
 {
-  "slides": [{ "text": "...", "label": "", "imagePrompt": "Specific scene for THIS slide, consistent with the visualStyle, cinematic, 9:16" }],
+  "slides": [${jsonExample}],
   "visualStyle": "ONE consistent visual style for ALL slides: medium, color palette, lighting, recurring character & setting",
   "hookSummary": "One sentence why this is viral"
 }`
@@ -148,8 +164,8 @@ function extractSlides(slidesRaw) {
 function normalizeResult(result) {
   const slides = extractSlides(result?.slides)
     .map(s => (typeof s === 'string'
-      ? { text: s, label: '', imagePrompt: '' }
-      : { text: s?.text ?? '', label: s?.label ?? '', imagePrompt: s?.imagePrompt ?? '' }))
+      ? { text: s, text2: '', label: '', imagePrompt: '' }
+      : { text: s?.text ?? '', text2: s?.text2 ?? '', label: s?.label ?? '', imagePrompt: s?.imagePrompt ?? '' }))
     .filter(s => s.text && String(s.text).trim())
   return {
     slides,

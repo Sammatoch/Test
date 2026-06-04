@@ -5,7 +5,7 @@ import {
   Download, Copy, Check, Loader2, Save, Plus, Zap, Pencil, TrendingUp
 } from 'lucide-react'
 import TikTokPreview from '../components/TikTokPreview.jsx'
-import { renderSlideToDataURL, DEFAULT_FONT_SIZE } from '../lib/renderSlide.js'
+import { renderSlideToDataURL, DEFAULT_FONT_SIZE, DIALOG_OFFSET_Y1, DIALOG_OFFSET_Y2 } from '../lib/renderSlide.js'
 
 const LANGUAGES = [
   { value: 'de', label: 'Deutsch' },
@@ -114,6 +114,7 @@ export default function Generator() {
   const [useIndexing, setUseIndexing] = useState(false)
   const [copiedIdx, setCopiedIdx] = useState(null)
   const [editingIdx, setEditingIdx] = useState(null)
+  const [editingIdx2, setEditingIdx2] = useState(null)
   const [globalFontSize, setGlobalFontSize] = useState(DEFAULT_FONT_SIZE)
   const [textSettings, setTextSettings] = useState([])
 
@@ -222,11 +223,17 @@ export default function Generator() {
 
   const isCoverSlide = (idx) => useCoverLastSlide && coverImage && idx === slides.length - 1
 
-  const getTextSettings = (idx) => ({
-    fontSize: globalFontSize,
-    offsetX: textSettings[idx]?.offsetX ?? 0,
-    offsetY: textSettings[idx]?.offsetY ?? 0
-  })
+  const getTextSettings = (idx) => {
+    const ts = textSettings[idx]
+    const isDialog = !!(slides[idx]?.text2)
+    return {
+      fontSize: globalFontSize,
+      offsetX: ts?.offsetX ?? 0,
+      offsetY: ts?.offsetY ?? (isDialog ? DIALOG_OFFSET_Y1 : 0),
+      offsetX2: ts?.offsetX2 ?? 0,
+      offsetY2: ts?.offsetY2 ?? (isDialog ? DIALOG_OFFSET_Y2 : 0)
+    }
+  }
 
   const updateTextSettings = (idx, patch) => {
     setTextSettings(prev => {
@@ -325,7 +332,10 @@ export default function Generator() {
       }
       setSlides(normalized)
       setSlideImages(new Array(normalized.length).fill(null))
-      setTextSettings(normalized.map(() => ({ offsetX: 0, offsetY: 0 })))
+      setTextSettings(normalized.map(s => s.text2
+        ? { offsetX: 0, offsetY: DIALOG_OFFSET_Y1, offsetX2: 0, offsetY2: DIALOG_OFFSET_Y2 }
+        : { offsetX: 0, offsetY: 0, offsetX2: 0, offsetY2: 0 }
+      ))
       setHookSummary(result?.hookSummary || '')
       setVisualStyle(result?.visualStyle || '')
     } catch (e) {
@@ -355,13 +365,12 @@ export default function Generator() {
     setTimeout(() => setCopiedIdx(null), 1500)
   }
 
-  const handleEditText = (idx, value) => {
+  const handleEditText = (idx, value, field = 'text') => {
     setSlides(prev => {
       const next = [...prev]
-      next[idx] = { ...next[idx], text: value }
+      next[idx] = { ...next[idx], [field]: value }
       return next
     })
-    // A manual edit invalidates the previously generated TikTok-indexed text
     if (useIndexing || indexedTexts.length) {
       setUseIndexing(false)
       setIndexedTexts([])
@@ -457,7 +466,10 @@ export default function Generator() {
       let lastPath = ''
       for (let i = 0; i < slides.length; i++) {
         const text = getDisplayText(slides[i], i)
-        const dataUrl = await renderSlideToDataURL(text, i, slides.length, slideImages[i] || null, getTextSettings(i))
+        const ts = getTextSettings(i)
+        const dataUrl = await renderSlideToDataURL(text, i, slides.length, slideImages[i] || null,
+          { ...ts, text2: slides[i].text2 || '' }
+        )
         const base64 = dataUrl.replace(/^data:image\/png;base64,/, '')
         const num = String(i + 1).padStart(2, '0')
         lastPath = await window.api.export.post(base64, `tiktok_${stamp}_slide${num}.png`)
@@ -818,41 +830,80 @@ export default function Generator() {
                       }`}>
                         {idx + 1}
                       </span>
-                      {editingIdx === idx ? (
-                        <textarea
-                          autoFocus
-                          value={slide.text}
-                          onClick={e => e.stopPropagation()}
-                          onChange={e => handleEditText(idx, e.target.value)}
-                          onBlur={() => setEditingIdx(null)}
-                          rows={Math.max(2, slide.text.split('\n').length)}
-                          className="flex-1 bg-black border border-tiktok-red/50 rounded-lg px-2 py-1.5 text-white text-sm leading-snug focus:outline-none focus:border-tiktok-red resize-none"
-                        />
-                      ) : (
-                        <p
-                          className="flex-1 text-white text-sm leading-snug whitespace-pre-wrap"
-                          onDoubleClick={e => { e.stopPropagation(); setEditingIdx(idx) }}
-                          title="Doppelklick zum Bearbeiten"
-                        >
-                          {displayText}
-                        </p>
-                      )}
-                      <button
-                        onClick={e => { e.stopPropagation(); setEditingIdx(editingIdx === idx ? null : idx) }}
-                        className={`shrink-0 p-1.5 rounded transition-colors ${
-                          editingIdx === idx ? 'text-tiktok-red' : 'text-tiktok-muted hover:text-white'
-                        }`}
-                        title={editingIdx === idx ? 'Fertig' : 'Text bearbeiten'}
-                      >
-                        {editingIdx === idx ? <Check size={14} /> : <Pencil size={14} />}
-                      </button>
-                      <button
-                        onClick={e => { e.stopPropagation(); handleCopy(displayText, idx) }}
-                        className="shrink-0 p-1.5 rounded text-tiktok-muted hover:text-white transition-colors"
-                        title="Kopieren"
-                      >
-                        {copiedIdx === idx ? <Check size={14} className="text-tiktok-cyan" /> : <Copy size={14} />}
-                      </button>
+                      <div className="flex-1 min-w-0 space-y-1.5">
+                        {/* Text A (always) */}
+                        <div className="flex items-start gap-1">
+                          {slide.text2 && (
+                            <span className="shrink-0 text-[10px] font-bold text-white/40 mt-1 w-3">A</span>
+                          )}
+                          {editingIdx === idx ? (
+                            <textarea
+                              autoFocus
+                              value={slide.text}
+                              onClick={e => e.stopPropagation()}
+                              onChange={e => handleEditText(idx, e.target.value, 'text')}
+                              onBlur={() => setEditingIdx(null)}
+                              rows={Math.max(2, slide.text.split('\n').length)}
+                              className="flex-1 bg-black border border-tiktok-red/50 rounded-lg px-2 py-1.5 text-white text-sm leading-snug focus:outline-none focus:border-tiktok-red resize-none"
+                            />
+                          ) : (
+                            <p
+                              className="flex-1 text-white text-sm leading-snug whitespace-pre-wrap"
+                              onDoubleClick={e => { e.stopPropagation(); setEditingIdx(idx) }}
+                              title="Doppelklick zum Bearbeiten"
+                            >
+                              {displayText}
+                            </p>
+                          )}
+                          <button
+                            onClick={e => { e.stopPropagation(); setEditingIdx(editingIdx === idx ? null : idx) }}
+                            className={`shrink-0 p-1.5 rounded transition-colors ${editingIdx === idx ? 'text-tiktok-red' : 'text-tiktok-muted hover:text-white'}`}
+                            title={editingIdx === idx ? 'Fertig' : 'Text A bearbeiten'}
+                          >
+                            {editingIdx === idx ? <Check size={14} /> : <Pencil size={14} />}
+                          </button>
+                          <button
+                            onClick={e => { e.stopPropagation(); handleCopy(displayText, idx) }}
+                            className="shrink-0 p-1.5 rounded text-tiktok-muted hover:text-white transition-colors"
+                            title="Kopieren"
+                          >
+                            {copiedIdx === idx ? <Check size={14} className="text-tiktok-cyan" /> : <Copy size={14} />}
+                          </button>
+                        </div>
+
+                        {/* Text B (dialog only) */}
+                        {slide.text2 !== undefined && slide.text2 !== null && (
+                          <div className="flex items-start gap-1 pl-0 border-t border-dashed border-tiktok-border pt-1.5">
+                            <span className="shrink-0 text-[10px] font-bold text-tiktok-cyan/60 mt-1 w-3">B</span>
+                            {editingIdx2 === idx ? (
+                              <textarea
+                                autoFocus
+                                value={slide.text2}
+                                onClick={e => e.stopPropagation()}
+                                onChange={e => handleEditText(idx, e.target.value, 'text2')}
+                                onBlur={() => setEditingIdx2(null)}
+                                rows={Math.max(2, (slide.text2 || '').split('\n').length)}
+                                className="flex-1 bg-black border border-tiktok-cyan/50 rounded-lg px-2 py-1.5 text-tiktok-cyan text-sm leading-snug focus:outline-none focus:border-tiktok-cyan resize-none"
+                              />
+                            ) : (
+                              <p
+                                className="flex-1 text-tiktok-cyan/80 text-sm leading-snug whitespace-pre-wrap"
+                                onDoubleClick={e => { e.stopPropagation(); setEditingIdx2(idx) }}
+                                title="Doppelklick zum Bearbeiten"
+                              >
+                                {slide.text2 || <span className="text-tiktok-muted italic text-xs">kein Text B</span>}
+                              </p>
+                            )}
+                            <button
+                              onClick={e => { e.stopPropagation(); setEditingIdx2(editingIdx2 === idx ? null : idx) }}
+                              className={`shrink-0 p-1.5 rounded transition-colors ${editingIdx2 === idx ? 'text-tiktok-cyan' : 'text-tiktok-muted hover:text-tiktok-cyan'}`}
+                              title={editingIdx2 === idx ? 'Fertig' : 'Text B bearbeiten'}
+                            >
+                              {editingIdx2 === idx ? <Check size={14} /> : <Pencil size={14} />}
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div className="mt-2 pl-9 flex items-start gap-2">
                       {hasImage ? (
@@ -909,12 +960,17 @@ export default function Generator() {
               fontSize={getTextSettings(currentSlide).fontSize}
               offsetX={getTextSettings(currentSlide).offsetX}
               offsetY={getTextSettings(currentSlide).offsetY}
+              offsetX2={getTextSettings(currentSlide).offsetX2}
+              offsetY2={getTextSettings(currentSlide).offsetY2}
               onOffsetChange={slides.length ? (x, y) => updateTextSettings(currentSlide, { offsetX: x, offsetY: y }) : undefined}
+              onOffset2Change={slides.length && slides[currentSlide]?.text2 ? (x, y) => updateTextSettings(currentSlide, { offsetX2: x, offsetY2: y }) : undefined}
             />
           </div>
           {slides.length > 0 && (
             <p className="text-[11px] text-tiktok-muted text-center mt-1.5">
-              Text in der Vorschau ziehen, um ihn zu verschieben
+              {slides[currentSlide]?.text2
+                ? 'Obere Hälfte (A) oder untere Hälfte (B) ziehen'
+                : 'Text ziehen, um ihn zu verschieben'}
             </p>
           )}
         </div>
@@ -937,7 +993,14 @@ export default function Generator() {
               className="w-full accent-tiktok-red"
             />
             <button
-              onClick={() => { setGlobalFontSize(DEFAULT_FONT_SIZE); updateTextSettings(currentSlide, { offsetX: 0, offsetY: 0 }) }}
+              onClick={() => {
+                setGlobalFontSize(DEFAULT_FONT_SIZE)
+                const isDialog = !!slides[currentSlide]?.text2
+                updateTextSettings(currentSlide, {
+                  offsetX: 0, offsetY: isDialog ? DIALOG_OFFSET_Y1 : 0,
+                  offsetX2: 0, offsetY2: isDialog ? DIALOG_OFFSET_Y2 : 0
+                })
+              }}
               className="text-xs text-tiktok-muted hover:text-tiktok-cyan transition-colors"
             >
               Zurücksetzen (Slide {currentSlide + 1})
