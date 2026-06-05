@@ -146,6 +146,7 @@ export default function Generator() {
       setHooks(h || [])
       // Values handed over from Viral Research must win over the restored session
       const nav = location.state || {}
+      const navHasSlides = Array.isArray(nav.slides) ? nav.slides.length > 0 : !!(nav.slides && typeof nav.slides === 'object' && Object.keys(nav.slides).length)
       // Restore last session if present, otherwise fall back to defaults
       const saved = loadSession()
       if (saved) {
@@ -164,7 +165,7 @@ export default function Generator() {
         setUseIndexing(indexingOn)
         // Restore generated text (images are intentionally not persisted)
         // BUT: slides handed over from Viral Research must win — don't overwrite them.
-        if (!nav.slides?.length && Array.isArray(saved.slides) && saved.slides.length) {
+        if (!navHasSlides && Array.isArray(saved.slides) && saved.slides.length) {
           setSlides(saved.slides)
           setSlideImages(new Array(saved.slides.length).fill(null))
           setTextSettings(
@@ -204,11 +205,16 @@ export default function Generator() {
   useEffect(() => {
     if (location.state?.hook) setHook(location.state.hook)
     if (location.state?.situation) setSituation(location.state.situation)
-    if (location.state?.slides?.length) {
-      const normalized = location.state.slides.map(s => ({
-        text: s.text ?? '', text2: s.text2 ?? '', label: s.label ?? '',
-        imagePrompt: s.imagePrompt ?? '', showsBook: !!s.showsBook
-      }))
+    // slides may arrive as an array or, from a tool_use object, as a keyed object — normalize both
+    const raw = location.state?.slides
+    const slidesArr = Array.isArray(raw) ? raw : (raw && typeof raw === 'object' ? Object.values(raw) : [])
+    if (slidesArr.length) {
+      const normalized = slidesArr
+        .filter(s => s && typeof s === 'object')
+        .map(s => ({
+          text: s.text ?? '', text2: s.text2 ?? '', label: s.label ?? '',
+          imagePrompt: s.imagePrompt ?? '', showsBook: !!s.showsBook
+        }))
       setSlides(normalized)
       setSlideImages(new Array(normalized.length).fill(null))
       setTextSettings(normalized.map(() => ({ offsetX: 0, offsetY: 0 })))

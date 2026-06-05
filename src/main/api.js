@@ -505,17 +505,21 @@ Antworte NUR mit diesem JSON (kein Markdown):
   }))
 
   const toolBlock = (msg.content || []).find(b => b.type === 'tool_use' && b.name === 'create_slideshow')
-  if (toolBlock?.input?.slides?.length) {
+  if (toolBlock?.input) {
     const result = toolBlock.input
-    result.slides = result.slides.slice(0, 12)
-    return result
+    const slides = extractSlides(result.slides)
+    if (slides.length) {
+      result.slides = slides.slice(0, 12)
+      return result
+    }
   }
 
   // fallback to text parsing
   const textBlock = (msg.content || []).find(b => b.type === 'text')
   const parsed = parseAIResponse(textBlock?.text || '')
-  if (!parsed?.slides?.length) throw new Error('KI konnte keine Slides aus dem Transkript erstellen')
-  parsed.slides = parsed.slides.slice(0, 12)
+  const fallbackSlides = extractSlides(parsed?.slides)
+  if (!fallbackSlides.length) throw new Error('KI konnte keine Slides aus dem Transkript erstellen')
+  parsed.slides = fallbackSlides.slice(0, 12)
   return parsed
 }
 
