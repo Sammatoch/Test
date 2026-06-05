@@ -162,7 +162,8 @@ export default function Generator() {
         const indexingOn = typeof saved.useIndexing === 'boolean' ? saved.useIndexing : true
         setUseIndexing(indexingOn)
         // Restore generated text (images are intentionally not persisted)
-        if (Array.isArray(saved.slides) && saved.slides.length) {
+        // BUT: slides handed over from Viral Research must win — don't overwrite them.
+        if (!nav.slides?.length && Array.isArray(saved.slides) && saved.slides.length) {
           setSlides(saved.slides)
           setSlideImages(new Array(saved.slides.length).fill(null))
           setTextSettings(
@@ -212,6 +213,7 @@ export default function Generator() {
       setTextSettings(normalized.map(() => ({ offsetX: 0, offsetY: 0 })))
       if (location.state.visualStyle) setVisualStyle(location.state.visualStyle)
       if (location.state.hookSummary) setHookSummary(location.state.hookSummary)
+      if (useIndexing) computeIndexed(normalized).then(setIndexedTexts)
     }
   }, [location.state])
 
