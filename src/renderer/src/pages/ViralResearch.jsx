@@ -82,6 +82,7 @@ function VideoDetailPanel({ video, onClose, onSlidesGenerated }) {
   const [analyzing, setAnalyzing] = useState(false)
   const [fetchingTranscript, setFetchingTranscript] = useState(false)
   const [transcriptLoaded, setTranscriptLoaded] = useState(false)
+  const [useAiFallback, setUseAiFallback] = useState(false)
   const [error, setError] = useState('')
 
   const handleFetchTranscript = async () => {
@@ -89,7 +90,7 @@ function VideoDetailPanel({ video, onClose, onSlidesGenerated }) {
     setError('')
     setFetchingTranscript(true)
     try {
-      const result = await window.api.viral.fetchTranscript({ videoUrl, language: 'de' })
+      const result = await window.api.viral.fetchTranscript({ videoUrl, language: 'de', useAiFallback })
       if (result?.text) {
         setTranscript(result.text)
         setTranscriptLoaded(true)
@@ -141,6 +142,18 @@ function VideoDetailPanel({ video, onClose, onSlidesGenerated }) {
         {fetchingTranscript ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
         {fetchingTranscript ? 'Lade Transkript...' : transcriptLoaded ? 'Transkript neu laden' : 'Echtes Transkript laden'}
       </button>
+
+      <label className="flex items-center gap-2 cursor-pointer select-none px-1">
+        <input
+          type="checkbox"
+          checked={useAiFallback}
+          onChange={e => setUseAiFallback(e.target.checked)}
+          className="accent-tiktok-red w-3.5 h-3.5"
+        />
+        <span className="text-[11px] text-tiktok-muted">
+          KI-Fallback nutzen wenn keine Untertitel <span className="opacity-60">(transkribiert per AI, kostet mehr Credits, nur Videos &lt; 2 Min.)</span>
+        </span>
+      </label>
 
       <div className={`rounded-lg p-2.5 border text-xs leading-relaxed ${
         transcriptLoaded

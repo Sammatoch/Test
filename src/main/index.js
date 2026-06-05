@@ -145,9 +145,9 @@ ipcMain.handle('viral:analyzeVideo', async (_, { transcript, stats, hasRealTrans
   return analyzeTranscriptForSlides({ transcript, stats, hasRealTranscript, bookTitle, language, stylePreference, settings })
 })
 
-ipcMain.handle('viral:fetchTranscript', async (_, { videoUrl, language }) => {
+ipcMain.handle('viral:fetchTranscript', async (_, { videoUrl, language, useAiFallback }) => {
   const settings = store.settings.get()
-  return fetchTikTokTranscript({ videoUrl, language, settings })
+  return fetchTikTokTranscript({ videoUrl, language, useAiFallback, settings })
 })
 
 // Export

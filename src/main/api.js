@@ -477,12 +477,14 @@ function parseWebVtt(vtt) {
   return deduped.join(' ')
 }
 
-export async function fetchTikTokTranscript({ videoUrl, language = 'de', settings }) {
+export async function fetchTikTokTranscript({ videoUrl, language = 'de', useAiFallback = false, settings }) {
   const key = settings.scrapeCreatorsKey
   if (!key) throw new Error('Bitte ScrapeCreators API-Key in Einstellungen hinterlegen')
   if (!videoUrl) throw new Error('Keine Video-URL vorhanden')
 
-  const url = `https://api.scrapecreators.com/v1/tiktok/video/transcript?url=${encodeURIComponent(videoUrl)}&language=${encodeURIComponent(language)}`
+  // use_ai_as_fallback transcribes via AI when no captions exist (costs ~10 credits, only <2min videos)
+  const aiParam = useAiFallback ? '&use_ai_as_fallback=true' : ''
+  const url = `https://api.scrapecreators.com/v1/tiktok/video/transcript?url=${encodeURIComponent(videoUrl)}&language=${encodeURIComponent(language)}${aiParam}`
   const res = await fetch(url, { headers: { 'x-api-key': key } })
   if (!res.ok) {
     const body = await res.text().catch(() => '')
@@ -491,7 +493,11 @@ export async function fetchTikTokTranscript({ videoUrl, language = 'de', setting
   const data = await res.json()
   const raw = data?.transcript || ''
   const text = parseWebVtt(raw)
-  if (!text.trim()) throw new Error('Kein Transkript gefunden (Video hat evtl. keine Untertitel)')
+  if (!text.trim()) {
+    throw new Error(useAiFallback
+      ? 'Kein Transkript gefunden — auch der AI-Fallback lieferte nichts (Video evtl. länger als 2 Min.)'
+      : 'Kein Transkript gefunden (keine Untertitel). Aktiviere den AI-Fallback und versuche es erneut.')
+  }
   return { text, videoId: data?.id || '', url: data?.url || videoUrl }
 }
 
