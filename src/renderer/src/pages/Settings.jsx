@@ -59,7 +59,8 @@ export default function Settings() {
     defaultBookTitle: 'Mein Sauerteig Backbuch',
     defaultNiche: 'Backen / Sauerteig',
     defaultLanguage: 'de',
-    defaultProvider: 'anthropic'
+    defaultProvider: 'anthropic',
+    openaiImageQuality: 'medium'
   })
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
@@ -274,6 +275,51 @@ export default function Settings() {
                 </div>
               </Field>
             </div>
+          </div>
+
+          <div className="bg-tiktok-surface border border-tiktok-border rounded-xl p-5">
+            <h3 className="text-sm font-semibold text-tiktok-cyan mb-4 uppercase tracking-wider">Bildgenerierung</h3>
+            <Field
+              label="OpenAI Bildqualität (gpt-image-1)"
+              hint="Höhere Qualität = bessere Bilder, aber deutlich teurer. Medium reicht für TikTok völlig aus."
+            >
+              <div className="space-y-2">
+                {[
+                  { value: 'low', label: 'Low', cost: '~0,015 $ / Bild', desc: 'Schnell & günstig' },
+                  { value: 'medium', label: 'Medium', cost: '~0,042 $ / Bild', desc: 'Empfohlen – gutes Preis-/Leistungs-Verhältnis' },
+                  { value: 'high', label: 'High', cost: '~0,19 $ / Bild', desc: 'Maximale Qualität (3× teurer als Medium)' }
+                ].map(opt => (
+                  <label key={opt.value} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                    form.openaiImageQuality === opt.value
+                      ? 'border-tiktok-red bg-tiktok-red/5'
+                      : 'border-tiktok-border hover:border-tiktok-border/80'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="openaiImageQuality"
+                      value={opt.value}
+                      checked={form.openaiImageQuality === opt.value}
+                      onChange={() => set('openaiImageQuality', opt.value)}
+                      className="accent-tiktok-red"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-white font-medium">{opt.label}</span>
+                        <span className={`text-xs font-mono ${
+                          opt.value === 'low' ? 'text-tiktok-cyan' :
+                          opt.value === 'medium' ? 'text-green-400' :
+                          'text-yellow-400'
+                        }`}>{opt.cost}</span>
+                        {opt.value === 'medium' && (
+                          <span className="text-[10px] bg-green-500/20 text-green-400 border border-green-500/30 px-1.5 py-0.5 rounded">Empfohlen</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-tiktok-muted mt-0.5">{opt.desc}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </Field>
           </div>
 
           <div className="bg-tiktok-surface border border-tiktok-border rounded-xl p-5">

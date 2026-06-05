@@ -271,6 +271,7 @@ async function withRetry(fn, { retries = 3, baseDelay = 5000 } = {}) {
 async function generateImageOpenAI(prompt, settings, referenceImages) {
   if (!settings.openaiKey) throw new Error('Bitte OpenAI API-Key in Einstellungen hinterlegen')
   const client = new OpenAI({ apiKey: settings.openaiKey })
+  const quality = settings.openaiImageQuality || 'medium'
 
   // With reference images, use the edit endpoint so the new image matches the references
   if (referenceImages && referenceImages.length) {
@@ -285,7 +286,7 @@ async function generateImageOpenAI(prompt, settings, referenceImages) {
       prompt,
       n: 1,
       size: '1024x1536',
-      quality: 'high'
+      quality
     }))
     const img = res.data[0]
     if (img.b64_json) return img.b64_json
@@ -298,7 +299,7 @@ async function generateImageOpenAI(prompt, settings, referenceImages) {
     prompt,
     n: 1,
     size: '1024x1536',
-    quality: 'high'
+    quality
   }))
   const img = res.data[0]
   if (img.b64_json) return img.b64_json
