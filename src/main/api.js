@@ -458,7 +458,7 @@ Antworte NUR mit diesem JSON:
   return { hook: parsed.hook || '', situation: parsed.situation || '', analysis: parsed.analysis || '' }
 }
 
-export async function analyzeTranscriptForSlides({ transcript, bookTitle, language = 'de', stylePreference = '', settings }) {
+export async function analyzeTranscriptForSlides({ transcript, stats, bookTitle, language = 'de', stylePreference = '', settings }) {
   if (!settings.anthropicKey) throw new Error('Bitte Anthropic API-Key in Einstellungen hinterlegen')
   if (!transcript?.trim()) throw new Error('Kein Transkript vorhanden')
 
@@ -466,14 +466,23 @@ export async function analyzeTranscriptForSlides({ transcript, bookTitle, langua
   const book = bookTitle?.trim() || 'mein Buch'
   const styleNote = stylePreference ? `\nBildstil: "${stylePreference}" — baue den visualStyle um diesen Stil auf.` : ''
 
+  const fmtNum = n => !n ? '0' : n >= 1000000 ? (n / 1000000).toFixed(1) + 'M' : n >= 1000 ? Math.round(n / 1000) + 'K' : String(n)
+  const statsNote = stats ? `\nViral-Kennzahlen dieses Videos: ${fmtNum(stats.views)} Aufrufe, ${fmtNum(stats.likes)} Likes, ${fmtNum(stats.comments)} Kommentare — nutze diese Zahlen um einzuschätzen WIE viral der Content ist und WARUM er so gut performt.` : ''
+
   const prompt = `Du bist ein viraler TikTok Content Creator für Sachbücher.
 
 Analysiere dieses TikTok-Transkript/Video-Text und erstelle daraus einen emotionalen Slideshow-Post für das Buch "${book}".
 
-TRANSKRIPT / VIDEO-TEXT:
+VIDEO-CONTENT:
 """
 ${transcript.slice(0, 3000)}
 """
+${statsNote}
+
+WICHTIGER HINWEIS ZUR ANALYSE:
+- Wenn nur eine kurze Caption + Hashtags vorliegen (kein echtes Transkript): analysiere was du hast, benenne aber im hookSummary ehrlich was du aus dem Text ableiten konntest
+- Wenn ein echtes gesprochenes Transkript vorliegt: analysiere Hook-Struktur, Spannungsbogen, emotionale Trigger, Storytelling-Pattern
+- Die Viral-Kennzahlen helfen dir einzuschätzen wie gut der Content performt — hohe Views + hohe Like-Rate = starker emotionaler Trigger
 
 Aufgabe:
 - Erkenne den emotionalen Hook, die Struktur und die viralen Trigger des Originals

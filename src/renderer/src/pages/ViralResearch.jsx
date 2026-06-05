@@ -60,6 +60,10 @@ function VideoCard({ video, index, selected, onClick }) {
 function VideoDetailPanel({ video, onClose, onSlidesGenerated }) {
   const text = video.text || video.description || ''
   const hashtags = (video.hashtags || []).map(h => `#${h.name || h}`).join(' ')
+  const views = video.playCount || video.stats?.playCount || 0
+  const likes = video.diggCount || video.stats?.diggCount || 0
+  const comments = video.commentCount || video.stats?.commentCount || 0
+
   const [transcript, setTranscript] = useState(
     [text, hashtags].filter(Boolean).join('\n\n')
   )
@@ -74,6 +78,7 @@ function VideoDetailPanel({ video, onClose, onSlidesGenerated }) {
     try {
       const result = await window.api.viral.analyzeVideo({
         transcript,
+        stats: { views, likes, comments },
         bookTitle: bookTitle.trim() || undefined,
         language: 'de',
         stylePreference: ''
@@ -94,13 +99,17 @@ function VideoDetailPanel({ video, onClose, onSlidesGenerated }) {
         <button onClick={onClose} className="text-tiktok-muted hover:text-white text-xs">✕</button>
       </div>
 
+      <div className="bg-black/40 rounded-lg p-2.5 border border-tiktok-border text-xs text-tiktok-muted leading-relaxed">
+        <span className="text-yellow-400 font-medium">Hinweis:</span> Das Feld unten enthält nur die <span className="text-white">Caption/Beschreibung</span> des Videos — kein echtes Transkript des gesprochenen Textes. Für bessere Ergebnisse: öffne das Video auf TikTok, aktiviere Untertitel, kopiere den gesprochenen Text und füge ihn hier ein.
+      </div>
+
       <div>
-        <p className="text-[11px] text-tiktok-muted mb-1">Transkript / Video-Text <span className="opacity-60">(bearbeitbar)</span></p>
+        <p className="text-[11px] text-tiktok-muted mb-1">Caption / Transkript <span className="opacity-60">(bearbeitbar — echtes Transkript hier einfügen für beste Ergebnisse)</span></p>
         <textarea
           value={transcript}
           onChange={e => setTranscript(e.target.value)}
           rows={5}
-          placeholder="Füge hier das vollständige Transkript ein oder bearbeite den Video-Text..."
+          placeholder="Füge hier das vollständige Transkript des gesprochenen Texts ein..."
           className="w-full bg-black border border-tiktok-border rounded-lg px-3 py-2 text-white text-xs leading-snug focus:outline-none focus:border-tiktok-cyan resize-none placeholder-tiktok-muted"
         />
       </div>

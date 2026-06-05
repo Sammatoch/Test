@@ -140,9 +140,9 @@ ipcMain.handle('viral:analyze', async (_, videos) => {
   return analyzeViralContent(videos, settings)
 })
 
-ipcMain.handle('viral:analyzeVideo', async (_, { transcript, bookTitle, language, stylePreference }) => {
+ipcMain.handle('viral:analyzeVideo', async (_, { transcript, stats, bookTitle, language, stylePreference }) => {
   const settings = store.settings.get()
-  return analyzeTranscriptForSlides({ transcript, bookTitle, language, stylePreference, settings })
+  return analyzeTranscriptForSlides({ transcript, stats, bookTitle, language, stylePreference, settings })
 })
 
 // Export
