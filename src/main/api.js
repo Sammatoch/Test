@@ -458,6 +458,63 @@ Antworte NUR mit diesem JSON:
   return { hook: parsed.hook || '', situation: parsed.situation || '', analysis: parsed.analysis || '' }
 }
 
+export async function analyzeTranscriptForSlides({ transcript, bookTitle, language = 'de', stylePreference = '', settings }) {
+  if (!settings.anthropicKey) throw new Error('Bitte Anthropic API-Key in Einstellungen hinterlegen')
+  if (!transcript?.trim()) throw new Error('Kein Transkript vorhanden')
+
+  const languageLabel = language === 'de' ? 'Deutsch' : language === 'en' ? 'English' : language
+  const book = bookTitle?.trim() || 'mein Buch'
+  const styleNote = stylePreference ? `\nBildstil: "${stylePreference}" — baue den visualStyle um diesen Stil auf.` : ''
+
+  const prompt = `Du bist ein viraler TikTok Content Creator für Sachbücher.
+
+Analysiere dieses TikTok-Transkript/Video-Text und erstelle daraus einen emotionalen Slideshow-Post für das Buch "${book}".
+
+TRANSKRIPT / VIDEO-TEXT:
+"""
+${transcript.slice(0, 3000)}
+"""
+
+Aufgabe:
+- Erkenne den emotionalen Hook, die Struktur und die viralen Trigger des Originals
+- Erstelle 6-8 kurze Slides die dieselbe Energie, denselben Spannungsbogen und dieselben Trigger nutzen — aber für das Buch "${book}" adaptiert
+- Letzter Slide: klarer Kauf-Aufruf für "${book}"
+- Ausgabe-Sprache: ${languageLabel}
+- "text2" IMMER leer lassen: ""${styleNote}
+
+Bild-Prompt Pflicht-Struktur (auf Englisch):
+1. Location: "in a [spezifischer authentischer Ort]"
+2. Scene: "Show [Figur + Emotion] [konkrete Handlung] [sensorische Details]"
+3. Atmosphere: "[Stimmung], warm natural daylight, painterly texture, not glossy, not advertising"
+NIEMALS Text/Wörter/Buchstaben im Bild. "showsBook" = true wenn ein Buch sichtbar ist.
+
+Antworte NUR mit diesem JSON (kein Markdown):
+{
+  "slides": [{"text":"...","text2":"","label":"","imagePrompt":"...","showsBook":false}],
+  "visualStyle": "ONE consistent visual style for ALL slides",
+  "hookSummary": "One sentence why this content is viral"
+}`
+
+  const client = new Anthropic({ apiKey: settings.anthropicKey })
+  const msg = await withRetry(() => client.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 4096,
+    tools: [{ name: 'create_slideshow', description: 'Create TikTok slideshow from transcript', input_schema: POST_SCHEMA }],
+    tool_choice: { type: 'tool', name: 'create_slideshow' },
+    messages: [{ role: 'user', content: prompt }]
+  }))
+
+  const toolBlock = (msg.content || []).find(b => b.type === 'tool_use' && b.name === 'create_slideshow')
+  if (toolBlock?.input?.slides?.length) return toolBlock.input
+
+  // fallback to text parsing
+  const textBlock = (msg.content || []).find(b => b.type === 'text')
+  const parsed = parseAIResponse(textBlock?.text || '')
+  if (!parsed?.slides?.length) throw new Error('KI konnte keine Slides aus dem Transkript erstellen')
+  return parsed
+}
+
+
 export function applyTikTokIndexing(text) {
   const invisible = ['​', '‌', '‍']
   let result = ''

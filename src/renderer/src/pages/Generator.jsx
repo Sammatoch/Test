@@ -202,6 +202,17 @@ export default function Generator() {
   useEffect(() => {
     if (location.state?.hook) setHook(location.state.hook)
     if (location.state?.situation) setSituation(location.state.situation)
+    if (location.state?.slides?.length) {
+      const normalized = location.state.slides.map(s => ({
+        text: s.text ?? '', text2: s.text2 ?? '', label: s.label ?? '',
+        imagePrompt: s.imagePrompt ?? '', showsBook: !!s.showsBook
+      }))
+      setSlides(normalized)
+      setSlideImages(new Array(normalized.length).fill(null))
+      setTextSettings(normalized.map(() => ({ offsetX: 0, offsetY: 0 })))
+      if (location.state.visualStyle) setVisualStyle(location.state.visualStyle)
+      if (location.state.hookSummary) setHookSummary(location.state.hookSummary)
+    }
   }, [location.state])
 
   useEffect(() => {
