@@ -81,6 +81,7 @@ function saveSession(data) {
 export default function Generator() {
   const location = useLocation()
   const canvasRef = useRef(null)
+  const slidesRef = useRef(null)
   const hydrated = useRef(false)
 
   const [settings, setSettings] = useState({})
@@ -214,6 +215,7 @@ export default function Generator() {
       if (location.state.visualStyle) setVisualStyle(location.state.visualStyle)
       if (location.state.hookSummary) setHookSummary(location.state.hookSummary)
       if (useIndexing) computeIndexed(normalized).then(setIndexedTexts)
+      setTimeout(() => slidesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150)
     }
   }, [location.state])
 
@@ -814,6 +816,15 @@ export default function Generator() {
 
       {/* CENTER PANEL */}
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+        {slides.length > 0 && !generating && (
+          <button
+            onClick={() => slidesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            className="w-full flex items-center justify-center gap-2 py-2 bg-tiktok-cyan/10 hover:bg-tiktok-cyan/20 border border-tiktok-cyan/30 text-tiktok-cyan rounded-lg text-sm font-medium transition-colors"
+          >
+            <ChevronRight size={15} className="rotate-90" />
+            {slides.length} Slides anzeigen
+          </button>
+        )}
         {error && (
           <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm">
             {error}
@@ -842,7 +853,7 @@ export default function Generator() {
 
         {slides.length > 0 && !generating && (
           <>
-            <div className="flex items-center justify-between">
+            <div ref={slidesRef} className="flex items-center justify-between">
               <div>
                 <h3 className="text-white font-semibold text-sm">Generierte Slides</h3>
                 {hookSummary && (
