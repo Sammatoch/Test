@@ -1006,8 +1006,7 @@ export default function Generator() {
                             <BookOpen size={10} /> Buch aus Referenz
                           </span>
                         )}
-                        {(slide.imagePrompt || isCoverSlide(idx)) && (
-                          <div className="mb-1">
+                        <div className="mb-1">
                             <div className="flex items-center gap-1">
                               <button
                                 onClick={e => { e.stopPropagation(); setExpandedPromptIdx(expandedPromptIdx === idx ? null : idx) }}
@@ -1059,7 +1058,6 @@ export default function Generator() {
                               )
                             )}
                           </div>
-                        )}
                         <button
                           onClick={e => { e.stopPropagation(); handleGenerateSlideImage(idx) }}
                           disabled={generatingImage || generatingSlideIdx !== null}
