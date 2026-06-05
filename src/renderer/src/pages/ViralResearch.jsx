@@ -57,19 +57,51 @@ function VideoCard({ video, index, selected, onClick }) {
   )
 }
 
+function getVideoUrl(video) {
+  // Prefer an explicit URL field from Apify; otherwise construct from author + id
+  if (video.webVideoUrl) return video.webVideoUrl
+  if (video.videoUrl) return video.videoUrl
+  const author = video.authorMeta?.name || video.author?.uniqueId || video.authorMeta?.uniqueId
+  const id = video.id || video.videoId
+  if (author && id) return `https://www.tiktok.com/@${author}/video/${id}`
+  return ''
+}
+
 function VideoDetailPanel({ video, onClose, onSlidesGenerated }) {
   const text = video.text || video.description || ''
   const hashtags = (video.hashtags || []).map(h => `#${h.name || h}`).join(' ')
   const views = video.playCount || video.stats?.playCount || 0
   const likes = video.diggCount || video.stats?.diggCount || 0
   const comments = video.commentCount || video.stats?.commentCount || 0
+  const videoUrl = getVideoUrl(video)
 
   const [transcript, setTranscript] = useState(
     [text, hashtags].filter(Boolean).join('\n\n')
   )
   const [bookTitle, setBookTitle] = useState('')
   const [analyzing, setAnalyzing] = useState(false)
+  const [fetchingTranscript, setFetchingTranscript] = useState(false)
+  const [transcriptLoaded, setTranscriptLoaded] = useState(false)
   const [error, setError] = useState('')
+
+  const handleFetchTranscript = async () => {
+    if (!videoUrl) { setError('Keine Video-URL ermittelbar'); return }
+    setError('')
+    setFetchingTranscript(true)
+    try {
+      const result = await window.api.viral.fetchTranscript({ videoUrl, language: 'de' })
+      if (result?.text) {
+        setTranscript(result.text)
+        setTranscriptLoaded(true)
+      } else {
+        throw new Error('Kein Transkript erhalten')
+      }
+    } catch (e) {
+      setError(e.message || 'Fehler beim Laden des Transkripts')
+    } finally {
+      setFetchingTranscript(false)
+    }
+  }
 
   const handleAnalyze = async () => {
     if (!transcript.trim()) return
@@ -79,6 +111,7 @@ function VideoDetailPanel({ video, onClose, onSlidesGenerated }) {
       const result = await window.api.viral.analyzeVideo({
         transcript,
         stats: { views, likes, comments },
+        hasRealTranscript: transcriptLoaded,
         bookTitle: bookTitle.trim() || undefined,
         language: 'de',
         stylePreference: ''
@@ -99,16 +132,34 @@ function VideoDetailPanel({ video, onClose, onSlidesGenerated }) {
         <button onClick={onClose} className="text-tiktok-muted hover:text-white text-xs">✕</button>
       </div>
 
-      <div className="bg-black/40 rounded-lg p-2.5 border border-tiktok-border text-xs text-tiktok-muted leading-relaxed">
-        <span className="text-yellow-400 font-medium">Hinweis:</span> Das Feld unten enthält nur die <span className="text-white">Caption/Beschreibung</span> des Videos — kein echtes Transkript des gesprochenen Textes. Für bessere Ergebnisse: öffne das Video auf TikTok, aktiviere Untertitel, kopiere den gesprochenen Text und füge ihn hier ein.
+      <button
+        onClick={handleFetchTranscript}
+        disabled={fetchingTranscript || !videoUrl}
+        className="w-full flex items-center justify-center gap-2 py-2 bg-tiktok-red/10 hover:bg-tiktok-red/20 border border-tiktok-red/40 text-tiktok-red rounded-lg text-sm font-medium transition-colors disabled:opacity-40"
+        title={videoUrl ? 'Lädt das echte gesprochene Transkript via ScrapeCreators' : 'Keine Video-URL verfügbar'}
+      >
+        {fetchingTranscript ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
+        {fetchingTranscript ? 'Lade Transkript...' : transcriptLoaded ? 'Transkript neu laden' : 'Echtes Transkript laden'}
+      </button>
+
+      <div className={`rounded-lg p-2.5 border text-xs leading-relaxed ${
+        transcriptLoaded
+          ? 'bg-tiktok-cyan/5 border-tiktok-cyan/30 text-tiktok-cyan'
+          : 'bg-black/40 border-tiktok-border text-tiktok-muted'
+      }`}>
+        {transcriptLoaded ? (
+          <><span className="font-medium">✓ Echtes Transkript geladen</span> — der gesprochene Text wurde via ScrapeCreators abgerufen. Die Analyse ist jetzt deutlich aussagekräftiger.</>
+        ) : (
+          <><span className="text-yellow-400 font-medium">Hinweis:</span> Das Feld unten enthält nur die <span className="text-white">Caption</span>. Klicke <span className="text-tiktok-red font-medium">„Echtes Transkript laden"</span> für den gesprochenen Text (benötigt ScrapeCreators API-Key in den Einstellungen).</>
+        )}
       </div>
 
       <div>
-        <p className="text-[11px] text-tiktok-muted mb-1">Caption / Transkript <span className="opacity-60">(bearbeitbar — echtes Transkript hier einfügen für beste Ergebnisse)</span></p>
+        <p className="text-[11px] text-tiktok-muted mb-1">Caption / Transkript <span className="opacity-60">(bearbeitbar)</span></p>
         <textarea
           value={transcript}
           onChange={e => setTranscript(e.target.value)}
-          rows={5}
+          rows={6}
           placeholder="Füge hier das vollständige Transkript des gesprochenen Texts ein..."
           className="w-full bg-black border border-tiktok-border rounded-lg px-3 py-2 text-white text-xs leading-snug focus:outline-none focus:border-tiktok-cyan resize-none placeholder-tiktok-muted"
         />

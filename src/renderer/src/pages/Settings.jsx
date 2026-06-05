@@ -52,6 +52,7 @@ export default function Settings() {
     openaiKey: '',
     geminiKey: '',
     apifyKey: '',
+    scrapeCreatorsKey: '',
     referenceBaseDir: '',
     bookCoverPath: '',
     bookBackCoverPath: '',
@@ -162,6 +163,16 @@ export default function Settings() {
                   value={form.apifyKey}
                   onChange={v => set('apifyKey', v)}
                   placeholder="apify_api_..."
+                />
+              </Field>
+              <Field
+                label="ScrapeCreators API-Key (Transkripte)"
+                hint="Für echte Video-Transkripte in der Viral Research. Hole deinen Key auf scrapecreators.com"
+              >
+                <MaskedInput
+                  value={form.scrapeCreatorsKey}
+                  onChange={v => set('scrapeCreatorsKey', v)}
+                  placeholder="..."
                 />
               </Field>
             </div>

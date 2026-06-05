@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron'
 import path from 'path'
 import fs from 'fs'
 import { initStore, store } from './store.js'
-import { generateContent, generateImage, applyTikTokIndexing, scrapeViralTikToks, analyzeViralContent, analyzeTranscriptForSlides } from './api.js'
+import { generateContent, generateImage, applyTikTokIndexing, scrapeViralTikToks, analyzeViralContent, analyzeTranscriptForSlides, fetchTikTokTranscript } from './api.js'
 
 let mainWindow
 
@@ -140,9 +140,14 @@ ipcMain.handle('viral:analyze', async (_, videos) => {
   return analyzeViralContent(videos, settings)
 })
 
-ipcMain.handle('viral:analyzeVideo', async (_, { transcript, stats, bookTitle, language, stylePreference }) => {
+ipcMain.handle('viral:analyzeVideo', async (_, { transcript, stats, hasRealTranscript, bookTitle, language, stylePreference }) => {
   const settings = store.settings.get()
-  return analyzeTranscriptForSlides({ transcript, stats, bookTitle, language, stylePreference, settings })
+  return analyzeTranscriptForSlides({ transcript, stats, hasRealTranscript, bookTitle, language, stylePreference, settings })
+})
+
+ipcMain.handle('viral:fetchTranscript', async (_, { videoUrl, language }) => {
+  const settings = store.settings.get()
+  return fetchTikTokTranscript({ videoUrl, language, settings })
 })
 
 // Export

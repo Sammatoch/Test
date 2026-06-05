@@ -458,7 +458,44 @@ Antworte NUR mit diesem JSON:
   return { hook: parsed.hook || '', situation: parsed.situation || '', analysis: parsed.analysis || '' }
 }
 
-export async function analyzeTranscriptForSlides({ transcript, stats, bookTitle, language = 'de', stylePreference = '', settings }) {
+// Strip WEBVTT timestamps/headers, returning just the spoken text as clean paragraphs
+function parseWebVtt(vtt) {
+  if (!vtt) return ''
+  const lines = vtt.split('\n')
+  const out = []
+  for (const line of lines) {
+    const t = line.trim()
+    if (!t) continue
+    if (t === 'WEBVTT') continue
+    if (/^\d+$/.test(t)) continue                       // cue numbers
+    if (t.includes('-->')) continue                     // timestamp lines
+    if (/^(NOTE|STYLE|REGION)\b/.test(t)) continue
+    out.push(t)
+  }
+  // Collapse consecutive duplicate lines (TikTok captions often repeat)
+  const deduped = out.filter((l, i) => l !== out[i - 1])
+  return deduped.join(' ')
+}
+
+export async function fetchTikTokTranscript({ videoUrl, language = 'de', settings }) {
+  const key = settings.scrapeCreatorsKey
+  if (!key) throw new Error('Bitte ScrapeCreators API-Key in Einstellungen hinterlegen')
+  if (!videoUrl) throw new Error('Keine Video-URL vorhanden')
+
+  const url = `https://api.scrapecreators.com/v1/tiktok/video/transcript?url=${encodeURIComponent(videoUrl)}&language=${encodeURIComponent(language)}`
+  const res = await fetch(url, { headers: { 'x-api-key': key } })
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new Error(`ScrapeCreators Fehler ${res.status}: ${body.slice(0, 200)}`)
+  }
+  const data = await res.json()
+  const raw = data?.transcript || ''
+  const text = parseWebVtt(raw)
+  if (!text.trim()) throw new Error('Kein Transkript gefunden (Video hat evtl. keine Untertitel)')
+  return { text, videoId: data?.id || '', url: data?.url || videoUrl }
+}
+
+export async function analyzeTranscriptForSlides({ transcript, stats, hasRealTranscript, bookTitle, language = 'de', stylePreference = '', settings }) {
   if (!settings.anthropicKey) throw new Error('Bitte Anthropic API-Key in Einstellungen hinterlegen')
   if (!transcript?.trim()) throw new Error('Kein Transkript vorhanden')
 
@@ -468,6 +505,9 @@ export async function analyzeTranscriptForSlides({ transcript, stats, bookTitle,
 
   const fmtNum = n => !n ? '0' : n >= 1000000 ? (n / 1000000).toFixed(1) + 'M' : n >= 1000 ? Math.round(n / 1000) + 'K' : String(n)
   const statsNote = stats ? `\nViral-Kennzahlen dieses Videos: ${fmtNum(stats.views)} Aufrufe, ${fmtNum(stats.likes)} Likes, ${fmtNum(stats.comments)} Kommentare — nutze diese Zahlen um einzuschätzen WIE viral der Content ist und WARUM er so gut performt.` : ''
+  const sourceNote = hasRealTranscript
+    ? '\nDATENQUELLE: Dies ist ein ECHTES gesprochenes Transkript des Videos — analysiere Hook-Struktur, Spannungsbogen, Pausen, Storytelling und emotionale Trigger gründlich.'
+    : '\nDATENQUELLE: Dies ist nur die Caption/Beschreibung, KEIN gesprochenes Transkript — sei im hookSummary ehrlich darüber, dass die Analyse auf begrenzten Daten basiert.'
 
   const prompt = `Du bist ein viraler TikTok Content Creator für Sachbücher.
 
@@ -477,7 +517,7 @@ VIDEO-CONTENT:
 """
 ${transcript.slice(0, 3000)}
 """
-${statsNote}
+${statsNote}${sourceNote}
 
 WICHTIGER HINWEIS ZUR ANALYSE:
 - Wenn nur eine kurze Caption + Hashtags vorliegen (kein echtes Transkript): analysiere was du hast, benenne aber im hookSummary ehrlich was du aus dem Text ableiten konntest
