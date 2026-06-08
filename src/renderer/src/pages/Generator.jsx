@@ -52,24 +52,38 @@ const TEXT_COLOR_PRESETS = [
   { value: '#ff5a5a', label: 'Rot' }
 ]
 
-// Aggregate hashtags from the last Apify viral search, ranked by frequency
+// Pick the 5 best hashtags from the last Apify viral search:
+// only take hashtags that appeared on the top-performing videos (sorted by views),
+// deduplicate, and return at most 5.
 function loadViralHashtags() {
   try {
     const viral = JSON.parse(localStorage.getItem(VIRAL_SESSION_KEY))
     const videos = viral?.videos
     if (!Array.isArray(videos) || !videos.length) return []
-    const counts = new Map()
-    for (const v of videos) {
+
+    // Sort videos by views descending, take top half (best performers)
+    const sorted = [...videos].sort((a, b) => {
+      const va = a.playCount || a.stats?.playCount || 0
+      const vb = b.playCount || b.stats?.playCount || 0
+      return vb - va
+    })
+    const topVideos = sorted.slice(0, Math.max(3, Math.ceil(sorted.length / 2)))
+
+    // Collect hashtags weighted by the video's view count
+    const scores = new Map()
+    for (const v of topVideos) {
+      const views = v.playCount || v.stats?.playCount || 1
       for (const h of v.hashtags || []) {
-        const name = (h?.name || h || '').toString().trim().replace(/^#/, '')
-        if (!name) continue
-        const key = name.toLowerCase()
-        const existing = counts.get(key)
-        if (existing) existing.count++
-        else counts.set(key, { name, count: 1 })
+        const name = (h?.name || h || '').toString().trim().replace(/^#/, '').toLowerCase()
+        if (!name || name.length < 2) continue
+        scores.set(name, (scores.get(name) || 0) + views)
       }
     }
-    return [...counts.values()].sort((a, b) => b.count - a.count).slice(0, 30)
+
+    return [...scores.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([name]) => ({ name }))
   } catch {
     return []
   }
@@ -872,41 +886,42 @@ export default function Generator() {
           {generating ? 'Generiere...' : 'Content generieren'}
         </button>
 
-        {/* Hashtags from the latest Apify viral search */}
+        {/* Top 5 hashtags from the best-performing viral videos */}
         <div className="mt-2 pt-3 border-t border-tiktok-border">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-1.5">
               <TrendingUp size={13} className="text-tiktok-cyan" />
-              <span className="text-xs font-medium text-tiktok-muted uppercase tracking-wider">Apify Hashtags</span>
+              <span className="text-xs font-medium text-tiktok-muted uppercase tracking-wider">Top Hashtags</span>
             </div>
             {viralHashtags.length > 0 && (
               <button
                 onClick={handleCopyAllHashtags}
                 className="flex items-center gap-1 text-xs text-tiktok-muted hover:text-tiktok-cyan transition-colors"
-                title="Alle Hashtags kopieren"
+                title="Alle 5 Hashtags als Block kopieren"
               >
                 {copiedTags ? <Check size={12} className="text-tiktok-cyan" /> : <Copy size={12} />}
-                {copiedTags ? 'Kopiert' : 'Alle'}
+                {copiedTags ? 'Kopiert!' : 'Alle kopieren'}
               </button>
             )}
           </div>
           {viralHashtags.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5">
-              {viralHashtags.map(h => (
-                <button
-                  key={h.name}
-                  onClick={() => handleCopyHashtag(h.name)}
-                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-black border border-tiktok-border text-xs text-tiktok-cyan hover:border-tiktok-cyan/50 transition-colors"
-                  title={`${h.count}× gefunden – klicken zum Kopieren`}
-                >
-                  #{h.name}
-                  <span className="text-tiktok-muted">{h.count}</span>
-                </button>
-              ))}
-            </div>
+            <>
+              <div
+                onClick={handleCopyAllHashtags}
+                className="cursor-pointer rounded-lg bg-black border border-tiktok-border hover:border-tiktok-cyan/40 px-3 py-2.5 transition-colors"
+                title="Klicken zum Kopieren"
+              >
+                <p className="text-tiktok-cyan text-sm leading-relaxed font-medium">
+                  {viralHashtags.map(h => '#' + h.name).join(' ')}
+                </p>
+              </div>
+              <p className="text-[10px] text-tiktok-muted mt-1.5 leading-snug">
+                Die 5 Hashtags der meistgesehenen Videos aus deiner letzten Viral-Research-Suche. Klicken zum Kopieren.
+              </p>
+            </>
           ) : (
             <p className="text-[11px] text-tiktok-muted leading-snug">
-              Noch keine Hashtags. Führe in „Viral Research" eine Suche durch — die häufigsten Hashtags erscheinen hier.
+              Noch keine Hashtags. Führe in „Viral Research" eine Suche durch — die 5 besten Hashtags aus den viralen Videos erscheinen hier.
             </p>
           )}
         </div>
