@@ -67,7 +67,7 @@ function buildViralMechanics(book) {
 }
 
 function buildPrompt(params) {
-  const { bookTitle, niche, situation, hook, perspective, language, stylePreference } = params
+  const { bookTitle, niche, situation, hook, perspective, language, stylePreference, imageStylePreset } = params
   const languageLabel = language === 'de' ? 'Deutsch' : language === 'en' ? 'English' : language === 'es' ? 'Español' : language
   const perspectiveLabel =
     perspective === 'alternating'
@@ -121,10 +121,16 @@ Regeln für die Bild-Prompts:
 - JEDE Slide bekommt einen EIGENEN, individuellen Bild-Prompt (imagePrompt)
 - WICHTIG: Jeder imagePrompt MUSS exakt zum definierten visualStyle passen (gleiche Figur, gleiches Setting, gleiche Farben, gleiches Licht) — es soll wie dieselbe Bildserie aussehen
 - Es ändert sich nur die konkrete Szene/Handlung passend zum Text dieser Slide
-- PFLICHT-STRUKTUR für jeden imagePrompt (auf Englisch):
+${imageStylePreset === 'photorealistic'
+  ? `- PFLICHT-STRUKTUR für jeden imagePrompt (auf Englisch — fotorealistisch-filmisch):
+  1. Location: "in a [spezifischer authentischer Ort]"
+  2. Scene: "Show [Figur: genaues Alter, Geschlecht, Kleidung — Farbe/Material/Schnitt, Körperhaltung/Pose, Mimik] [konkrete Handlung] [sensorische Details: Licht, Texturen, Props]"
+  3. Atmosphere: "[Stimmung], natural daylight or soft window light, photorealistic 35mm film look, cinematic, not illustrated, not painted, not advertising"
+- WICHTIG: Jede Figur immer mit konkreter Kleidungsbeschreibung (z.B. "woman in her 30s wearing a faded blue denim shirt, loose linen pants, bare feet") und exakter Pose/Haltung (z.B. "leaning over the counter, both hands kneading dough")`
+  : `- PFLICHT-STRUKTUR für jeden imagePrompt (auf Englisch — malerisch-künstlerisch):
   1. Location: "in a [spezifischer Ort, z.B. cozy German apartment kitchen / warm home bakery]"
   2. Scene: "Show [Figur + emotionaler Zustand] [konkrete Handlung] [Objekt-Details: Textur, Zustand, Props]"
-  3. Atmosphere: "[Stimmung], warm natural daylight, painterly texture, not glossy, not advertising, soft background blur"
+  3. Atmosphere: "[Stimmung], warm natural daylight, painterly texture, not glossy, not advertising, soft background blur"`}
 - Sehr konkret und sensorisch: Textur des Teigs/Brots/Materials, Mehlstaub, nasse Hände, Holzoberflächen, etc.
 - WICHTIG: NIEMALS Text, Wörter, Buchstaben, Beschriftungen oder Untertitel im Bild — der imagePrompt darf keinerlei Textinhalte aus "text" oder "text2" enthalten${isDialog ? '\n- DIALOG-MODUS: Jedes Bild MUSS ZWEI Personen zeigen — Person A im oberen Bildbereich, Person B im unteren Bildbereich sichtbar' : ''}
 

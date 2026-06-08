@@ -40,6 +40,21 @@ const SESSION_KEY = 'tiktok-generator-session'
 const VIRAL_SESSION_KEY = 'tiktok-viral-session'
 const DEFAULT_STYLE = 'warm cinematic oil painting, photorealistic, golden natural light, rich textures, rustic atmosphere'
 
+const IMAGE_STYLE_PRESETS = [
+  {
+    id: 'painterly',
+    label: 'Malerisch-künstlerisch',
+    style: 'warm cinematic oil painting, photorealistic, golden natural light, rich textures, rustic atmosphere',
+    quality: 'Painterly texture, not glossy, not advertising, warm natural daylight, soft background blur.'
+  },
+  {
+    id: 'photorealistic',
+    label: 'Fotorealistisch-filmisch',
+    style: 'photorealistic cinematic, real people with precise clothing and body positions, natural daylight, 35mm film look, authentic documentary feel',
+    quality: 'Photorealistic, cinematic 35mm film grain, not painted, not illustrated, not advertising, authentic documentary look.'
+  }
+]
+
 // Standard-Schriftfarben (verschiedene Weißtöne + ein paar Akzente) zum schnellen Anklicken
 const TEXT_COLOR_PRESETS = [
   { value: '#ffffff', label: 'Reinweiß' },
@@ -123,6 +138,7 @@ export default function Generator() {
   const [language, setLanguage] = useState('de')
   const [provider, setProvider] = useState('anthropic')
   const [stylePreference, setStylePreference] = useState(DEFAULT_STYLE)
+  const [imageStylePreset, setImageStylePreset] = useState('painterly')
 
   const [slides, setSlides] = useState([])
   const [hookSummary, setHookSummary] = useState('')
@@ -191,6 +207,7 @@ export default function Generator() {
         setLanguage(saved.language ?? 'de')
         setProvider(saved.provider ?? 'anthropic')
         setStylePreference(saved.stylePreference ?? DEFAULT_STYLE)
+        setImageStylePreset(saved.imageStylePreset ?? 'painterly')
         setImageProvider(saved.imageProvider ?? 'openai')
         setManualImageFolder(saved.manualImageFolder ?? '')
         setManualImageSort(saved.manualImageSort ?? 'name')
@@ -232,12 +249,12 @@ export default function Generator() {
   useEffect(() => {
     if (!hydrated.current) return
     saveSession({
-      bookTitle, niche, situation, hook, perspective, language, provider, stylePreference, imageProvider, globalFontSize,
+      bookTitle, niche, situation, hook, perspective, language, provider, stylePreference, imageStylePreset, imageProvider, globalFontSize,
       useCoverLastSlide, useIndexing, manualImageFolder, manualImageSort, textColor, textAlign,
       // Text only — strip nothing, slides hold only text/label/imagePrompt
       slides, hookSummary, visualStyle, textSettings
     })
-  }, [bookTitle, niche, situation, hook, perspective, language, provider, stylePreference, imageProvider, globalFontSize, useCoverLastSlide, useIndexing, manualImageFolder, manualImageSort, textColor, textAlign, slides, hookSummary, visualStyle, textSettings])
+  }, [bookTitle, niche, situation, hook, perspective, language, provider, stylePreference, imageStylePreset, imageProvider, globalFontSize, useCoverLastSlide, useIndexing, manualImageFolder, manualImageSort, textColor, textAlign, slides, hookSummary, visualStyle, textSettings])
 
   useEffect(() => {
     if (location.state?.hook) setHook(location.state.hook)
@@ -314,7 +331,8 @@ export default function Generator() {
 
   const composeImagePrompt = (slide) => {
     const scene = slide.imagePrompt || 'a cinematic scene'
-    const quality = ' Painterly texture, not glossy, not advertising, warm natural daylight, soft background blur.'
+    const preset = IMAGE_STYLE_PRESETS.find(p => p.id === imageStylePreset)
+    const quality = ' ' + (preset?.quality ?? IMAGE_STYLE_PRESETS[0].quality)
     const noText = ' No text, words, letters, or captions visible anywhere in the image.'
     const bookNote = slideShowsBook(slide)
       ? ` IMPORTANT: the book visible in the scene MUST be the exact book from the provided reference image(s) — same cover artwork, title and design. Do NOT invent a different book.`
@@ -435,7 +453,7 @@ export default function Generator() {
     setCurrentSlide(0)
     try {
       const result = await window.api.generate.content({
-        bookTitle, niche, situation, hook, perspective, language, provider, stylePreference
+        bookTitle, niche, situation, hook, perspective, language, provider, stylePreference, imageStylePreset
       })
       // Robustly locate the slides array regardless of returned shape
       let raw = result?.slides ?? result
@@ -860,21 +878,35 @@ export default function Generator() {
         </div>
 
         <InputRow label="Bild-Stil (gesamte Slideshow)">
-          <input
-            value={stylePreference}
-            onChange={e => setStylePreference(e.target.value)}
-            placeholder="z.B. painterly style, cinematic photo, anime..."
-            className={inputClass}
-            list="style-presets"
-          />
-          <datalist id="style-presets">
-            <option value="painterly style" />
-            <option value="cinematic photo, warm film look" />
-            <option value="watercolor illustration" />
-            <option value="3D Pixar-style render" />
-            <option value="anime illustration" />
-            <option value="vintage film photography" />
-          </datalist>
+          <select
+            value={imageStylePreset}
+            onChange={e => {
+              const id = e.target.value
+              setImageStylePreset(id)
+              const preset = IMAGE_STYLE_PRESETS.find(p => p.id === id)
+              if (preset) setStylePreference(preset.style)
+              else if (id === 'custom') { /* keep current stylePreference */ }
+            }}
+            className={selectClass}
+          >
+            {IMAGE_STYLE_PRESETS.map(p => (
+              <option key={p.id} value={p.id}>{p.label}</option>
+            ))}
+            <option value="custom">Eigener Stil...</option>
+          </select>
+          {imageStylePreset === 'custom' && (
+            <input
+              value={stylePreference}
+              onChange={e => setStylePreference(e.target.value)}
+              placeholder="z.B. anime illustration, watercolor, 3D Pixar..."
+              className={inputClass + ' mt-1.5'}
+            />
+          )}
+          <p className="text-[11px] text-tiktok-muted mt-1 leading-snug">
+            {IMAGE_STYLE_PRESETS.find(p => p.id === imageStylePreset)
+              ? IMAGE_STYLE_PRESETS.find(p => p.id === imageStylePreset).style
+              : stylePreference || 'Freier Stil'}
+          </p>
         </InputRow>
 
         <button
