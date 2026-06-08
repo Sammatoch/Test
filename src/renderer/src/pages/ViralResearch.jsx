@@ -357,7 +357,9 @@ export default function ViralResearch() {
       state: {
         slides: result.slides,
         visualStyle: result.visualStyle,
-        hookSummary: result.hookSummary
+        hookSummary: result.hookSummary,
+        title: result.title,
+        description: result.description
       }
     })
   }

@@ -142,6 +142,10 @@ export default function Generator() {
 
   const [slides, setSlides] = useState([])
   const [hookSummary, setHookSummary] = useState('')
+  const [postTitle, setPostTitle] = useState('')
+  const [postDescription, setPostDescription] = useState('')
+  const [copiedTitle, setCopiedTitle] = useState(false)
+  const [copiedDescription, setCopiedDescription] = useState(false)
   const [currentSlide, setCurrentSlide] = useState(0)
 
   const [visualStyle, setVisualStyle] = useState('')
@@ -228,6 +232,8 @@ export default function Generator() {
               : saved.slides.map(() => ({ offsetX: 0, offsetY: 0 }))
           )
           setHookSummary(saved.hookSummary ?? '')
+          setPostTitle(saved.postTitle ?? '')
+          setPostDescription(saved.postDescription ?? '')
           setVisualStyle(saved.visualStyle ?? '')
           if (indexingOn) computeIndexed(saved.slides).then(setIndexedTexts)
         }
@@ -252,9 +258,9 @@ export default function Generator() {
       bookTitle, niche, situation, hook, perspective, language, provider, stylePreference, imageStylePreset, imageProvider, globalFontSize,
       useCoverLastSlide, useIndexing, manualImageFolder, manualImageSort, textColor, textAlign,
       // Text only — strip nothing, slides hold only text/label/imagePrompt
-      slides, hookSummary, visualStyle, textSettings
+      slides, hookSummary, postTitle, postDescription, visualStyle, textSettings
     })
-  }, [bookTitle, niche, situation, hook, perspective, language, provider, stylePreference, imageStylePreset, imageProvider, globalFontSize, useCoverLastSlide, useIndexing, manualImageFolder, manualImageSort, textColor, textAlign, slides, hookSummary, visualStyle, textSettings])
+  }, [bookTitle, niche, situation, hook, perspective, language, provider, stylePreference, imageStylePreset, imageProvider, globalFontSize, useCoverLastSlide, useIndexing, manualImageFolder, manualImageSort, textColor, textAlign, slides, hookSummary, postTitle, postDescription, visualStyle, textSettings])
 
   useEffect(() => {
     if (location.state?.hook) setHook(location.state.hook)
@@ -274,6 +280,8 @@ export default function Generator() {
       setTextSettings(normalized.map(() => ({ offsetX: 0, offsetY: 0 })))
       if (location.state.visualStyle) setVisualStyle(location.state.visualStyle)
       if (location.state.hookSummary) setHookSummary(location.state.hookSummary)
+      if (location.state.title) setPostTitle(location.state.title)
+      if (location.state.description) setPostDescription(location.state.description)
       if (useIndexing) computeIndexed(normalized).then(setIndexedTexts)
       setTimeout(() => slidesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150)
     }
@@ -445,6 +453,8 @@ export default function Generator() {
     setGenerating(true)
     setSlides([])
     setHookSummary('')
+    setPostTitle('')
+    setPostDescription('')
     setVisualStyle('')
     setSlideImages([])
     setIndexedTexts([])
@@ -485,6 +495,8 @@ export default function Generator() {
         : { offsetX: 0, offsetY: 0, offsetX2: 0, offsetY2: 0 }
       ))
       setHookSummary(result?.hookSummary || '')
+      setPostTitle(result?.title || '')
+      setPostDescription(result?.description || '')
       setVisualStyle(result?.visualStyle || '')
       // TikTok-Indexing is on by default — apply it to the freshly generated texts
       if (useIndexing) setIndexedTexts(await computeIndexed(normalized))
@@ -706,6 +718,20 @@ export default function Generator() {
     await navigator.clipboard.writeText(all)
     setCopiedTags(true)
     setTimeout(() => setCopiedTags(false), 1500)
+  }
+
+  const handleCopyTitle = async () => {
+    if (!postTitle) return
+    await navigator.clipboard.writeText(postTitle)
+    setCopiedTitle(true)
+    setTimeout(() => setCopiedTitle(false), 1500)
+  }
+
+  const handleCopyDescription = async () => {
+    if (!postDescription) return
+    await navigator.clipboard.writeText(postDescription)
+    setCopiedDescription(true)
+    setTimeout(() => setCopiedDescription(false), 1500)
   }
 
   const handleSelectHook = (h) => {
@@ -954,6 +980,66 @@ export default function Generator() {
           ) : (
             <p className="text-[11px] text-tiktok-muted leading-snug">
               Noch keine Hashtags. Führe in „Viral Research" eine Suche durch — die 5 besten Hashtags aus den viralen Videos erscheinen hier.
+            </p>
+          )}
+        </div>
+
+        {/* Viral title + short description, generated from the same analysis */}
+        <div className="mt-2 pt-3 border-t border-tiktok-border">
+          <div className="flex items-center gap-1.5 mb-2">
+            <Wand2 size={13} className="text-tiktok-red" />
+            <span className="text-xs font-medium text-tiktok-muted uppercase tracking-wider">Titel & Beschreibung</span>
+          </div>
+          {postTitle || postDescription ? (
+            <div className="space-y-2">
+              {postTitle && (
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] text-tiktok-muted uppercase tracking-wider">Viraler Titel</span>
+                    <button
+                      onClick={handleCopyTitle}
+                      className="flex items-center gap-1 text-[11px] text-tiktok-muted hover:text-tiktok-cyan transition-colors"
+                      title="Titel kopieren"
+                    >
+                      {copiedTitle ? <Check size={11} className="text-tiktok-cyan" /> : <Copy size={11} />}
+                      {copiedTitle ? 'Kopiert!' : 'Kopieren'}
+                    </button>
+                  </div>
+                  <div
+                    onClick={handleCopyTitle}
+                    className="cursor-pointer rounded-lg bg-black border border-tiktok-border hover:border-tiktok-red/40 px-3 py-2 transition-colors"
+                    title="Klicken zum Kopieren"
+                  >
+                    <p className="text-white text-sm font-medium leading-snug">{postTitle}</p>
+                  </div>
+                </div>
+              )}
+              {postDescription && (
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] text-tiktok-muted uppercase tracking-wider">Beschreibung</span>
+                    <button
+                      onClick={handleCopyDescription}
+                      className="flex items-center gap-1 text-[11px] text-tiktok-muted hover:text-tiktok-cyan transition-colors"
+                      title="Beschreibung kopieren"
+                    >
+                      {copiedDescription ? <Check size={11} className="text-tiktok-cyan" /> : <Copy size={11} />}
+                      {copiedDescription ? 'Kopiert!' : 'Kopieren'}
+                    </button>
+                  </div>
+                  <div
+                    onClick={handleCopyDescription}
+                    className="cursor-pointer rounded-lg bg-black border border-tiktok-border hover:border-tiktok-red/40 px-3 py-2 transition-colors"
+                    title="Klicken zum Kopieren"
+                  >
+                    <p className="text-tiktok-muted text-xs leading-relaxed">{postDescription}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-[11px] text-tiktok-muted leading-snug">
+              Noch kein Titel. Generiere Content — ein viraler Titel und eine kurze Beschreibung werden aus derselben Analyse erstellt.
             </p>
           )}
         </div>

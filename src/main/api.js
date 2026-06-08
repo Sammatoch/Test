@@ -23,9 +23,11 @@ const POST_SCHEMA = {
       }
     },
     visualStyle: { type: 'string' },
-    hookSummary: { type: 'string' }
+    hookSummary: { type: 'string' },
+    title: { type: 'string' },
+    description: { type: 'string' }
   },
-  required: ['slides', 'visualStyle', 'hookSummary']
+  required: ['slides', 'visualStyle', 'hookSummary', 'title', 'description']
 }
 
 const GEMINI_SCHEMA = {
@@ -46,9 +48,11 @@ const GEMINI_SCHEMA = {
       }
     },
     visualStyle: { type: SchemaType.STRING },
-    hookSummary: { type: SchemaType.STRING }
+    hookSummary: { type: SchemaType.STRING },
+    title: { type: SchemaType.STRING },
+    description: { type: SchemaType.STRING }
   },
-  required: ['slides', 'visualStyle', 'hookSummary']
+  required: ['slides', 'visualStyle', 'hookSummary', 'title', 'description']
 }
 
 // Shared, expert-level rules on what actually makes TikTok slideshows perform.
@@ -140,11 +144,17 @@ Regel für "showsBook" (Buch im Bild):
 - Setze "showsBook" = false, wenn KEIN Buch in der Szene vorkommt
 - Die letzte Slide (Kauf-Aufruf) zeigt typischerweise das Buch → showsBook = true
 
+Regeln für den viralen Titel & die Beschreibung (basierend auf deiner Analyse oben):
+- "title": EIN viraler, scroll-stoppender Titel für die gesamte Slideshow in ${languageLabel} (max. 8 Wörter). Greift denselben Nerv/Trigger wie Slide 1 auf — neugierig machend, konkret, kein Clickbait-Müll. Kein abschließender Punkt.
+- "description": EINE kurze, knackige Beschreibung/Caption in ${languageLabel} (1-2 Sätze, max. ~200 Zeichen). Verstärkt den emotionalen Trigger, erzeugt Neugier und endet mit einem sanften Engagement-Impuls (z.B. eine Frage oder Aufforderung zum Speichern/Kommentieren). Passend zum Buch "${bookTitle}" und der Nische "${niche}".
+
 Antworte NUR mit folgendem JSON (kein Markdown, kein Extra-Text):
 {
   "slides": [${jsonExample}],
   "visualStyle": "ONE consistent visual style for ALL slides: medium, color palette, lighting, recurring character & setting",
-  "hookSummary": "One sentence why this is viral"
+  "hookSummary": "One sentence why this is viral",
+  "title": "Viraler Titel der Slideshow (max. 8 Wörter)",
+  "description": "Kurze, knackige Beschreibung/Caption (1-2 Sätze) mit Engagement-Impuls"
 }`
 }
 
@@ -211,7 +221,9 @@ function normalizeResult(result) {
   return {
     slides,
     visualStyle: result?.visualStyle || '',
-    hookSummary: result?.hookSummary || ''
+    hookSummary: result?.hookSummary || '',
+    title: result?.title || '',
+    description: result?.description || ''
   }
 }
 
@@ -579,11 +591,17 @@ Bild-Prompt Pflicht-Struktur (auf Englisch):
 3. Atmosphere: "[Stimmung], warm natural daylight, painterly texture, not glossy, not advertising"
 NIEMALS Text/Wörter/Buchstaben im Bild. "showsBook" = true wenn ein Buch sichtbar ist.
 
+Erstelle außerdem (basierend auf der extrahierten viralen DNA):
+- "title": EIN viraler, scroll-stoppender Titel für die Slideshow in ${languageLabel} (max. 8 Wörter, kein abschließender Punkt)
+- "description": EINE kurze, knackige Caption in ${languageLabel} (1-2 Sätze, max. ~200 Zeichen) mit Engagement-Impuls (Frage/Aufforderung), passend zu "${book}"
+
 Antworte NUR mit diesem JSON (kein Markdown):
 {
   "slides": [{"text":"...","text2":"","label":"","imagePrompt":"...","showsBook":false}],
   "visualStyle": "ONE consistent visual style for ALL slides",
-  "hookSummary": "Die extrahierte virale DNA in einem Satz (Hook-Typ + Trigger + warum es funktioniert)"
+  "hookSummary": "Die extrahierte virale DNA in einem Satz (Hook-Typ + Trigger + warum es funktioniert)",
+  "title": "Viraler Titel der Slideshow (max. 8 Wörter)",
+  "description": "Kurze, knackige Caption (1-2 Sätze) mit Engagement-Impuls"
 }`
 
   const client = new Anthropic({ apiKey: settings.anthropicKey })
