@@ -51,6 +51,21 @@ const GEMINI_SCHEMA = {
   required: ['slides', 'visualStyle', 'hookSummary']
 }
 
+// Shared, expert-level rules on what actually makes TikTok slideshows perform.
+// TikTok rewards watch-time, swipe-through rate, rewatches, saves and comments —
+// every rule below targets one of those mechanics.
+function buildViralMechanics(book) {
+  return `WIE TIKTOK-SLIDESHOWS VIRAL GEHEN (Experten-Regeln — IMMER befolgen):
+- TikTok belohnt WATCH-TIME, DURCHSWIPE-RATE, REWATCHES, SAVES und KOMMENTARE. Optimiere jeden Slide dafür.
+- SLIDE 1 = SCROLL-STOPPER. Sie entscheidet in <1 Sekunde alles. Pflicht: EIN mutiger, konkreter Satz, der sofort einen Nerv trifft (Schmerz, Wunsch, Überraschung oder "verbotenes" Wissen). Verboten: Begrüßung, Vorgeplänkel, "In diesem Post…", "Hier sind…". Die erste Zeile muss wie ein Daumen-Stopp wirken.
+- OFFENE SCHLEIFE (Open Loop): Jede Slide erzeugt eine kleine offene Frage, die NUR durch Weiterswipen beantwortet wird. Der Leser muss unbedingt wissen wollen, was als Nächstes kommt — baue Mini-Cliffhanger ein.
+- KONKRET schlägt GENERISCH: echte Zahlen, Zeiträume, sensorische Details, spezifische Momente ("3 Wochen lang", "um 5 Uhr morgens", "Teig klebte an allen Fingern") statt Floskeln ("es war schwer", "es hat nicht geklappt").
+- EMOTIONALE TRIGGER: Identifikation ("das bin genau ich"), Schmerz, Sehnsucht, Aha-Moment oder leichte Kontroverse. Mindestens eine Slide soll so treffen, dass man kommentieren MUSS.
+- EINE Idee pro Slide. Kurz, gesprochen, wie zu einer guten Freundin. Keine Schachtelsätze, keine Werbesprache.
+- SAVE-WÜRDIG: Mindestens eine Slide liefert einen konkreten, sofort nützlichen Tipp/Aha-Moment, den man sich speichern will.
+- CTA NATIV & WERTBASIERT (nur letzte Slide): kein plumpes "Kauf jetzt". Stattdessen den konkreten Nutzen rahmen ("Die komplette Schritt-für-Schritt-Anleitung steht in '${book}'") + sanfter Handlungsimpuls. Es muss sich wie ein ehrlicher Tipp anfühlen, nicht wie Werbung.`
+}
+
 function buildPrompt(params) {
   const { bookTitle, niche, situation, hook, perspective, language, stylePreference } = params
   const languageLabel = language === 'de' ? 'Deutsch' : language === 'en' ? 'English' : language === 'es' ? 'Español' : language
@@ -64,16 +79,20 @@ function buildPrompt(params) {
   const textRules = isDialog
     ? `Regeln für den Text (DIALOG-Modus — PFLICHT):
 - 6-8 Slides, jede hat ZWEI Sprechertexte
+- SLIDE 1 ist der Scroll-Stopper: Person A stellt eine provokante/neugierig machende Aussage oder Frage, Person B reagiert so, dass man unbedingt weiterswipen muss
 - "text": Aussage von Person A (erscheint OBEN) — MAXIMAL 5 WÖRTER, eine einzige Zeile, kein Zeilenumbruch
 - "text2": Reaktion von Person B (erscheint UNTEN) — MAXIMAL 5 WÖRTER, eine einzige Zeile, kein Zeilenumbruch
 - Kein "A:" / "B:"-Prefix, nur den reinen kurzen Satz
-- Beide Texte zusammen bauen Spannung auf — extrem knapp, direkt, emotional triggern
-- Letzter Slide: text = Kauf-Aufruf (max. 5 Wörter), text2 = Handlungsaufforderung (max. 5 Wörter)`
+- Jede Slide baut Spannung auf die nächste auf (offene Schleife) — extrem knapp, konkret, emotional
+- Letzter Slide: text = nativer, wertbasierter Hinweis auf "${bookTitle}" (max. 5 Wörter), text2 = sanfter Handlungsimpuls (max. 5 Wörter)`
     : `Regeln für den Text (MONOLOG-Modus):
 - 6-10 kurze Slides, jede max. 2-3 Zeilen in "text"
 - "text2" IMMER leer lassen: ""
-- Sehr kurze, prägnante Sätze die emotional triggern
-- Letzter Slide: klarer KAUF-Aufruf (Call-to-Action), der konkret zum Kauf des Buchs "${bookTitle}" anregt`
+- SLIDE 1 ist der Scroll-Stopper (siehe Experten-Regeln): EIN konkreter, nervtreffender Satz — kein Vorgeplänkel, keine Begrüßung
+- Jede Slide endet mit einer offenen Schleife, die zum Weiterswipen zwingt
+- Sehr kurze, gesprochene, KONKRETE Sätze (Zahlen, sensorische Details) statt Floskeln
+- Mindestens eine Slide ist save-würdig (konkreter Tipp/Aha-Moment)
+- Letzter Slide: nativer, wertbasierter Call-to-Action für "${bookTitle}" — fühlt sich wie ein ehrlicher Tipp an, nicht wie Werbung`
 
   const jsonExample = isDialog
     ? `{ "text": "Person A Text...", "text2": "Person B Antwort...", "label": "", "imagePrompt": "...", "showsBook": false }`
@@ -87,6 +106,8 @@ Hook: "${hook}"
 Perspektive: ${perspectiveLabel}
 Ausgabe-Sprache: ${languageLabel}
 WICHTIG: Buchtitel immer in der Originalsprache: "${bookTitle}"
+
+${buildViralMechanics(bookTitle)}
 
 ${textRules}
 
@@ -426,15 +447,17 @@ export async function analyzeViralContent(videos, settings) {
     return `Video ${i + 1} (${fmt(views)} Aufrufe, ${fmt(likes)} Likes):\n"${text}"\n${hashtags}`
   }).join('\n\n')
 
-  const prompt = `Analysiere diese viralen TikTok-Videos und leite daraus eine Hook-Strategie für einen Buch-Slideshow-Post ab.
+  const prompt = `Du bist ein Top-1%-Experte für virales Social-Media-Storytelling. Reverse-engineere diese bereits viralen TikTok-Videos und leite eine Hook-Strategie für einen Buch-Slideshow-Post ab.
 
-VIRALE VIDEOS:
+VIRALE VIDEOS (sortiert nach Reichweite):
 ${videoSummaries}
 
-Erstelle:
-1. Einen emotionalen Hook-Text (max. 2 Sätze, spezifisch und triggert Neugier/Schmerz/Wunsch)
-2. Eine kurze Situationsbeschreibung die den Hook motiviert (1-2 Sätze)
-3. Kurze Analyse warum diese Videos viral gehen (1-2 Sätze)
+Erkenne zuerst das gemeinsame virale Muster: Welcher Hook-Typ, welche Spannungs-Mechanik und welcher emotionale Trigger wiederholen sich bei den erfolgreichsten Videos? Die Kennzahlen zeigen, was am stärksten performt.
+
+Erstelle dann:
+1. "hook": EINEN Scroll-Stopper als erste Slide — max. 1-2 sehr konkrete Sätze, die in <1 Sekunde einen Nerv treffen (Schmerz/Wunsch/Überraschung/verbotenes Wissen). KEIN Vorgeplänkel, keine Begrüßung. Nutze denselben Hook-Typ wie die viralen Originale.
+2. "situation": kurze Situationsbeschreibung (1-2 Sätze), die den Hook motiviert — konkret, mit echtem Alltagsmoment.
+3. "analysis": die extrahierte virale DNA in 1-2 Sätzen (Hook-Typ + stärkster Trigger + warum die Leute reagieren/teilen/speichern).
 
 Antworte NUR mit diesem JSON:
 {"hook":"...","situation":"...","analysis":"..."}`
@@ -516,25 +539,31 @@ export async function analyzeTranscriptForSlides({ transcript, stats, hasRealTra
     ? '\nDATENQUELLE: Dies ist ein ECHTES gesprochenes Transkript des Videos — analysiere Hook-Struktur, Spannungsbogen, Pausen, Storytelling und emotionale Trigger gründlich.'
     : '\nDATENQUELLE: Dies ist nur die Caption/Beschreibung, KEIN gesprochenes Transkript — sei im hookSummary ehrlich darüber, dass die Analyse auf begrenzten Daten basiert.'
 
-  const prompt = `Du bist ein viraler TikTok Content Creator für Sachbücher.
+  const prompt = `Du bist ein Top-1%-Experte für virales Social-Media-Storytelling und reverse-engineerst virale TikToks für Sachbücher.
 
-Analysiere dieses TikTok-Transkript/Video-Text und erstelle daraus einen emotionalen Slideshow-Post für das Buch "${book}".
-
-VIDEO-CONTENT:
+VIDEO-CONTENT (bereits viral gegangen):
 """
 ${transcript.slice(0, 3000)}
 """
 ${statsNote}${sourceNote}
 
-WICHTIGER HINWEIS ZUR ANALYSE:
-- Wenn nur eine kurze Caption + Hashtags vorliegen (kein echtes Transkript): analysiere was du hast, benenne aber im hookSummary ehrlich was du aus dem Text ableiten konntest
-- Wenn ein echtes gesprochenes Transkript vorliegt: analysiere Hook-Struktur, Spannungsbogen, emotionale Trigger, Storytelling-Pattern
-- Die Viral-Kennzahlen helfen dir einzuschätzen wie gut der Content performt — hohe Views + hohe Like-Rate = starker emotionaler Trigger
+${buildViralMechanics(book)}
 
-Aufgabe:
-- Erkenne den emotionalen Hook, die Struktur und die viralen Trigger des Originals
-- Erstelle 6-8 kurze Slides die dieselbe Energie, denselben Spannungsbogen und dieselben Trigger nutzen — aber für das Buch "${book}" adaptiert
-- Letzter Slide: klarer Kauf-Aufruf für "${book}"
+ARBEITE IN ZWEI SCHRITTEN:
+
+SCHRITT 1 — VIRALE DNA EXTRAHIEREN (denke das gründlich durch, bevor du Slides baust):
+- HOOK-TYP: Welches bewährte Muster nutzt Slide 1? (z.B. kontroverse Aussage, "Dinge die ich zu spät gelernt habe", POV, Vorher/Nachher, Fehler-Geständnis, "niemand redet über…", Mini-Story)
+- SPANNUNGS-MECHANIK: Welche offene Frage hält die Zuschauer bis zum Ende? Warum swipen/schauen sie weiter?
+- STÄRKSTER EMOTIONALER TRIGGER: Was genau löst die Reaktion aus (Identifikation, Schmerz, Sehnsucht, Aha, Kontroverse)?
+- WARUM KOMMENTIEREN/TEILEN/SPEICHERN die Leute? (Die Kennzahlen geben Hinweise: hohe Like-/Kommentar-Rate = starker Trigger.)
+→ Fasse diese DNA in EINEM prägnanten Satz im Feld "hookSummary" zusammen (das ist die Begründung der Viralität).
+
+SCHRITT 2 — DIESELBE DNA FÜR "${book}" NACHBAUEN:
+- Übernimm Hook-Typ, Spannungs-Mechanik und emotionalen Trigger 1:1 — aber mit Inhalten rund um "${book}" und das Thema des Buchs
+- Erstelle 6-8 kurze Slides. Slide 1 = derselbe Scroll-Stopper-Typ wie im Original
+- Jede Slide: offene Schleife zur nächsten, konkret statt generisch, eine Idee pro Slide
+- Mindestens eine save-würdige Slide (konkreter Tipp/Aha-Moment)
+- Letzter Slide: nativer, wertbasierter CTA für "${book}" (kein plumpes "Kauf jetzt" — ehrlicher Tipp-Ton)
 - Ausgabe-Sprache: ${languageLabel}
 - "text2" IMMER leer lassen: ""${styleNote}
 
@@ -548,7 +577,7 @@ Antworte NUR mit diesem JSON (kein Markdown):
 {
   "slides": [{"text":"...","text2":"","label":"","imagePrompt":"...","showsBook":false}],
   "visualStyle": "ONE consistent visual style for ALL slides",
-  "hookSummary": "One sentence why this content is viral"
+  "hookSummary": "Die extrahierte virale DNA in einem Satz (Hook-Typ + Trigger + warum es funktioniert)"
 }`
 
   const client = new Anthropic({ apiKey: settings.anthropicKey })
