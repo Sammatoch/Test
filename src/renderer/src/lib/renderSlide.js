@@ -23,7 +23,7 @@ function wrapText(ctx, text, maxWidth) {
 }
 
 // Returns the centerY of the rendered text block (used for avatar placement)
-function drawTextBlock(ctx, text, { fontSize, offsetX, offsetY, maxWidth }) {
+function drawTextBlock(ctx, text, { fontSize, offsetX, offsetY, maxWidth, color = '#ffffff' }) {
   const rawLines = text.split('\n')
   const allLines = []
   for (const rawLine of rawLines) {
@@ -41,7 +41,7 @@ function drawTextBlock(ctx, text, { fontSize, offsetX, offsetY, maxWidth }) {
   ctx.shadowOffsetY = 3
 
   allLines.forEach((line, i) => {
-    ctx.fillStyle = '#ffffff'
+    ctx.fillStyle = color
     ctx.fillText(line, centerX, startY + i * lineHeight)
   })
 
@@ -58,7 +58,8 @@ export function drawSlide(ctx, {
   index, total, img,
   fontSize = DEFAULT_FONT_SIZE,
   offsetX = 0, offsetY = 0,
-  offsetX2 = 0, offsetY2 = 0
+  offsetX2 = 0, offsetY2 = 0,
+  textColor = '#ffffff'
 }) {
   ctx.clearRect(0, 0, CANVAS_W, CANVAS_H)
 
@@ -102,7 +103,7 @@ export function drawSlide(ctx, {
   ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, Arial, sans-serif`
   ctx.textAlign = 'center'
 
-  drawTextBlock(ctx, text, { fontSize, offsetX, offsetY, maxWidth })
+  drawTextBlock(ctx, text, { fontSize, offsetX, offsetY, maxWidth, color: textColor })
 
   if (text2) {
     // Separator line between the two speakers
@@ -117,7 +118,7 @@ export function drawSlide(ctx, {
     ctx.stroke()
     ctx.restore()
 
-    drawTextBlock(ctx, text2, { fontSize, offsetX: offsetX2, offsetY: offsetY2, maxWidth })
+    drawTextBlock(ctx, text2, { fontSize, offsetX: offsetX2, offsetY: offsetY2, maxWidth, color: textColor })
   }
 }
 

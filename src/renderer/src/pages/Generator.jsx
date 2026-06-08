@@ -39,6 +39,18 @@ const SESSION_KEY = 'tiktok-generator-session'
 const VIRAL_SESSION_KEY = 'tiktok-viral-session'
 const DEFAULT_STYLE = 'warm cinematic oil painting, photorealistic, golden natural light, rich textures, rustic atmosphere'
 
+// Standard-Schriftfarben (verschiedene Weißtöne + ein paar Akzente) zum schnellen Anklicken
+const TEXT_COLOR_PRESETS = [
+  { value: '#ffffff', label: 'Reinweiß' },
+  { value: '#fff6e6', label: 'Cremeweiß' },
+  { value: '#fffff0', label: 'Elfenbein' },
+  { value: '#f5e9d0', label: 'Warmbeige' },
+  { value: '#f0ead6', label: 'Eierschale' },
+  { value: '#1a1a1a', label: 'Schwarz' },
+  { value: '#ffd966', label: 'Gold' },
+  { value: '#ff5a5a', label: 'Rot' }
+]
+
 // Aggregate hashtags from the last Apify viral search, ranked by frequency
 function loadViralHashtags() {
   try {
@@ -125,6 +137,7 @@ export default function Generator() {
   const [expandedPromptIdx, setExpandedPromptIdx] = useState(null)
   const [copiedPromptIdx, setCopiedPromptIdx] = useState(null)
   const [globalFontSize, setGlobalFontSize] = useState(DEFAULT_FONT_SIZE)
+  const [textColor, setTextColor] = useState('#ffffff')
   const [textSettings, setTextSettings] = useState([])
 
   const [viralHashtags, setViralHashtags] = useState([])
@@ -166,6 +179,7 @@ export default function Generator() {
         setManualImageFolder(saved.manualImageFolder ?? '')
         setManualImageSort(saved.manualImageSort ?? 'name')
         if (saved.globalFontSize) setGlobalFontSize(saved.globalFontSize)
+        if (saved.textColor) setTextColor(saved.textColor)
         if (typeof saved.useCoverLastSlide === 'boolean') setUseCoverLastSlide(saved.useCoverLastSlide)
         const indexingOn = typeof saved.useIndexing === 'boolean' ? saved.useIndexing : true
         setUseIndexing(indexingOn)
@@ -202,11 +216,11 @@ export default function Generator() {
     if (!hydrated.current) return
     saveSession({
       bookTitle, niche, situation, hook, perspective, language, provider, stylePreference, imageProvider, globalFontSize,
-      useCoverLastSlide, useIndexing, manualImageFolder, manualImageSort,
+      useCoverLastSlide, useIndexing, manualImageFolder, manualImageSort, textColor,
       // Text only — strip nothing, slides hold only text/label/imagePrompt
       slides, hookSummary, visualStyle, textSettings
     })
-  }, [bookTitle, niche, situation, hook, perspective, language, provider, stylePreference, imageProvider, globalFontSize, useCoverLastSlide, useIndexing, manualImageFolder, manualImageSort, slides, hookSummary, visualStyle, textSettings])
+  }, [bookTitle, niche, situation, hook, perspective, language, provider, stylePreference, imageProvider, globalFontSize, useCoverLastSlide, useIndexing, manualImageFolder, manualImageSort, textColor, slides, hookSummary, visualStyle, textSettings])
 
   useEffect(() => {
     if (location.state?.hook) setHook(location.state.hook)
@@ -583,7 +597,7 @@ export default function Generator() {
         const text = getDisplayText(slides[i], i)
         const ts = getTextSettings(i)
         const dataUrl = await renderSlideToDataURL(text, i, slides.length, slideImages[i] || null,
-          { ...ts, text2: slides[i].text2 || '' }
+          { ...ts, text2: slides[i].text2 || '', textColor }
         )
         const base64 = dataUrl.replace(/^data:image\/png;base64,/, '')
         const num = String(i + 1).padStart(2, '0')
@@ -1162,6 +1176,7 @@ export default function Generator() {
               offsetY={getTextSettings(currentSlide).offsetY}
               offsetX2={getTextSettings(currentSlide).offsetX2}
               offsetY2={getTextSettings(currentSlide).offsetY2}
+              textColor={textColor}
               onOffsetChange={slides.length ? (x, y) => updateTextSettings(currentSlide, { offsetX: x, offsetY: y }) : undefined}
               onOffset2Change={slides.length && slides[currentSlide]?.text2 ? (x, y) => updateTextSettings(currentSlide, { offsetX2: x, offsetY2: y }) : undefined}
             />
@@ -1205,6 +1220,53 @@ export default function Generator() {
             >
               Zurücksetzen (Slide {currentSlide + 1})
             </button>
+          </div>
+        )}
+
+        {slides.length > 0 && (
+          <div className="space-y-2">
+            <label className="text-xs text-tiktok-muted uppercase tracking-wider">
+              Schriftfarbe (alle Slides)
+            </label>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {TEXT_COLOR_PRESETS.map(c => (
+                <button
+                  key={c.value}
+                  onClick={() => setTextColor(c.value)}
+                  title={c.label}
+                  className={`w-7 h-7 rounded-full border-2 transition-transform hover:scale-110 ${
+                    textColor.toLowerCase() === c.value.toLowerCase()
+                      ? 'border-tiktok-red ring-2 ring-tiktok-red/40'
+                      : 'border-tiktok-border'
+                  }`}
+                  style={{ backgroundColor: c.value }}
+                />
+              ))}
+              {/* Farbrad / freie Farbwahl */}
+              <label
+                title="Eigene Farbe wählen (Farbrad)"
+                className="relative w-7 h-7 rounded-full border-2 border-tiktok-border cursor-pointer overflow-hidden hover:scale-110 transition-transform"
+                style={{ background: 'conic-gradient(red, yellow, lime, cyan, blue, magenta, red)' }}
+              >
+                <input
+                  type="color"
+                  value={textColor}
+                  onChange={e => setTextColor(e.target.value)}
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                />
+              </label>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-tiktok-muted font-mono uppercase">{textColor}</span>
+              {textColor.toLowerCase() !== '#ffffff' && (
+                <button
+                  onClick={() => setTextColor('#ffffff')}
+                  className="text-[11px] text-tiktok-muted hover:text-tiktok-cyan transition-colors"
+                >
+                  Auf Weiß zurücksetzen
+                </button>
+              )}
+            </div>
           </div>
         )}
 
