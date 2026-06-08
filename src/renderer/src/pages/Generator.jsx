@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
 import {
   Wand2, ChevronLeft, ChevronRight, Image, FolderOpen,
-  Download, Copy, Check, Loader2, Save, Plus, Zap, Pencil, TrendingUp, BookOpen
+  Download, Copy, Check, Loader2, Save, Plus, Zap, Pencil, TrendingUp, BookOpen, RefreshCw, Images
 } from 'lucide-react'
 import TikTokPreview from '../components/TikTokPreview.jsx'
 import { renderSlideToDataURL, DEFAULT_FONT_SIZE, DIALOG_OFFSET_Y1, DIALOG_OFFSET_Y2 } from '../lib/renderSlide.js'
@@ -110,6 +110,10 @@ export default function Generator() {
   const [selectedRefFolder, setSelectedRefFolder] = useState('')
   const [referenceImages, setReferenceImages] = useState([])
   const [loadingRefs, setLoadingRefs] = useState(false)
+  const [manualImageFolder, setManualImageFolder] = useState('')
+  const [manualImageSort, setManualImageSort] = useState('name')
+  const [loadingManualImages, setLoadingManualImages] = useState(false)
+  const [manualImageCount, setManualImageCount] = useState(0)
   const [coverImage, setCoverImage] = useState(null)
   const [backCoverImage, setBackCoverImage] = useState(null)
   const [useCoverLastSlide, setUseCoverLastSlide] = useState(true)
@@ -159,6 +163,8 @@ export default function Generator() {
         setProvider(saved.provider ?? 'anthropic')
         setStylePreference(saved.stylePreference ?? DEFAULT_STYLE)
         setImageProvider(saved.imageProvider ?? 'openai')
+        setManualImageFolder(saved.manualImageFolder ?? '')
+        setManualImageSort(saved.manualImageSort ?? 'name')
         if (saved.globalFontSize) setGlobalFontSize(saved.globalFontSize)
         if (typeof saved.useCoverLastSlide === 'boolean') setUseCoverLastSlide(saved.useCoverLastSlide)
         const indexingOn = typeof saved.useIndexing === 'boolean' ? saved.useIndexing : true
@@ -196,11 +202,11 @@ export default function Generator() {
     if (!hydrated.current) return
     saveSession({
       bookTitle, niche, situation, hook, perspective, language, provider, stylePreference, imageProvider, globalFontSize,
-      useCoverLastSlide, useIndexing,
+      useCoverLastSlide, useIndexing, manualImageFolder, manualImageSort,
       // Text only — strip nothing, slides hold only text/label/imagePrompt
       slides, hookSummary, visualStyle, textSettings
     })
-  }, [bookTitle, niche, situation, hook, perspective, language, provider, stylePreference, imageProvider, globalFontSize, useCoverLastSlide, useIndexing, slides, hookSummary, visualStyle, textSettings])
+  }, [bookTitle, niche, situation, hook, perspective, language, provider, stylePreference, imageProvider, globalFontSize, useCoverLastSlide, useIndexing, manualImageFolder, manualImageSort, slides, hookSummary, visualStyle, textSettings])
 
   useEffect(() => {
     if (location.state?.hook) setHook(location.state.hook)
@@ -324,6 +330,61 @@ export default function Generator() {
   const showSuccess = (msg) => {
     setSuccessMsg(msg)
     setTimeout(() => setSuccessMsg(''), 2500)
+  }
+
+  // Map ready-made images from a folder onto the slides in order:
+  // image 1 → slide 1, image 2 → slide 2, … (sorted by filename or creation date).
+  const loadManualImages = async (folder, sort) => {
+    if (!folder) return
+    if (!slides.length) {
+      setError('Bitte zuerst Content generieren, dann Bilder aus dem Ordner laden.')
+      return
+    }
+    setLoadingManualImages(true)
+    setError('')
+    try {
+      const files = await window.api.references.listImages(folder)
+      if (!files.length) {
+        setManualImageCount(0)
+        setError('Im gewählten Ordner wurden keine Bilder gefunden.')
+        return
+      }
+      const sorted = [...files].sort((a, b) =>
+        sort === 'date'
+          ? (a.birthtimeMs || a.mtimeMs || 0) - (b.birthtimeMs || b.mtimeMs || 0)
+          : a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+      )
+      const next = [...slideImages]
+      const count = Math.min(sorted.length, slides.length)
+      for (let i = 0; i < count; i++) {
+        const b64 = await window.api.references.readAsBase64(sorted[i].path)
+        if (b64) next[i] = b64
+      }
+      setSlideImages(next)
+      setManualImageCount(sorted.length)
+      const note = sorted.length > slides.length
+        ? ` (${sorted.length - slides.length} Bild(er) übrig)`
+        : sorted.length < slides.length
+          ? ` (${slides.length - sorted.length} Slide(s) ohne Bild)`
+          : ''
+      showSuccess(`${count} Bild(er) aus Ordner zugeordnet${note}.`)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setLoadingManualImages(false)
+    }
+  }
+
+  const handleSelectManualImageFolder = async () => {
+    const dir = await window.api.references.selectFolder()
+    if (!dir) return
+    setManualImageFolder(dir)
+    await loadManualImages(dir, manualImageSort)
+  }
+
+  const handleChangeManualSort = async (sort) => {
+    setManualImageSort(sort)
+    if (manualImageFolder) await loadManualImages(manualImageFolder, sort)
   }
 
   const handleGenerate = async () => {
@@ -1166,6 +1227,59 @@ export default function Generator() {
             </button>
           </div>
         )}
+
+        {/* Use ready-made images from a folder instead of paying for API generation */}
+        <div className="space-y-2 pb-3 border-b border-tiktok-border">
+          <div className="flex items-center gap-1.5">
+            <Images size={14} className="text-tiktok-cyan" />
+            <span className="text-xs font-medium text-tiktok-muted uppercase tracking-wider">Eigene Bilder aus Ordner</span>
+          </div>
+          <p className="text-[11px] text-tiktok-muted leading-snug">
+            Spart API-Kosten: Lege fertige Bilder in einen Ordner. Bild 1 → Slide 1, Bild 2 → Slide 2 usw.
+          </p>
+          <div className="flex gap-2">
+            <select
+              value={manualImageSort}
+              onChange={e => handleChangeManualSort(e.target.value)}
+              className={selectClass + ' flex-1'}
+              title="Reihenfolge, in der die Bilder den Slides zugeordnet werden"
+            >
+              <option value="name">Nach Dateiname</option>
+              <option value="date">Nach Erstelldatum</option>
+            </select>
+            <button
+              onClick={handleSelectManualImageFolder}
+              className="flex items-center gap-1.5 px-3 py-2 border border-tiktok-border hover:border-white/30 text-tiktok-muted hover:text-white rounded-lg text-xs transition-colors shrink-0"
+            >
+              <FolderOpen size={14} />
+              Ordner
+            </button>
+          </div>
+          {manualImageFolder && (
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <span className="flex-1 text-[11px] text-tiktok-cyan truncate" title={manualImageFolder}>
+                  {manualImageFolder.replace(/^.*[\\/]/, '') || manualImageFolder}
+                </span>
+                <button
+                  onClick={() => loadManualImages(manualImageFolder, manualImageSort)}
+                  disabled={loadingManualImages || slides.length === 0}
+                  className="flex items-center gap-1 text-[11px] text-tiktok-muted hover:text-tiktok-cyan disabled:opacity-40 transition-colors shrink-0"
+                  title="Bilder neu aus dem Ordner laden und zuordnen"
+                >
+                  {loadingManualImages ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                  Neu laden
+                </button>
+              </div>
+              {manualImageCount > 0 && (
+                <p className="text-[11px] text-tiktok-muted leading-snug">
+                  {manualImageCount} Bild(er) im Ordner · {Math.min(manualImageCount, slides.length)} zugeordnet
+                  {manualImageCount < slides.length && ` · ${slides.length - manualImageCount} Slide(s) ohne Bild`}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
 
         <div className="space-y-2">
           <div className="flex gap-2">

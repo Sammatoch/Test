@@ -118,7 +118,16 @@ ipcMain.handle('references:listImages', (_, folderPath) => {
   try {
     return fs.readdirSync(folderPath, { withFileTypes: true })
       .filter(e => e.isFile() && IMAGE_EXTS.includes(path.extname(e.name).toLowerCase()))
-      .map(e => ({ name: e.name, path: path.join(folderPath, e.name) }))
+      .map(e => {
+        const full = path.join(folderPath, e.name)
+        let mtimeMs = 0, birthtimeMs = 0
+        try {
+          const st = fs.statSync(full)
+          mtimeMs = st.mtimeMs
+          birthtimeMs = st.birthtimeMs
+        } catch { /* ignore unreadable file */ }
+        return { name: e.name, path: full, mtimeMs, birthtimeMs }
+      })
   } catch {
     return []
   }
