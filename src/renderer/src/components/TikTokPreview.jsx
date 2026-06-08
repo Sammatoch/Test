@@ -16,6 +16,7 @@ export default function TikTokPreview({
   offsetY2 = 0,
   textColor = '#ffffff',
   textAlign = 'center',
+  onDoubleClick,
   onOffsetChange,
   onOffset2Change
 }) {
@@ -92,13 +93,14 @@ export default function TikTokPreview({
         onPointerMove={handlePointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
+        onDoubleClick={onDoubleClick}
         style={{
           width: DISPLAY_W,
           height: DISPLAY_H,
           overflow: 'hidden',
           borderRadius: 16,
           position: 'relative',
-          cursor: canDrag ? 'move' : 'default',
+          cursor: canDrag ? 'move' : (onDoubleClick ? 'pointer' : 'default'),
           touchAction: 'none'
         }}
       >

@@ -681,6 +681,18 @@ export default function Generator() {
     setShowHookDropdown(false)
   }
 
+  const handlePickImageForSlide = async () => {
+    const filePath = await window.api.references.selectImageFile()
+    if (!filePath) return
+    const b64 = await window.api.references.readAsBase64(filePath)
+    if (!b64) return
+    setSlideImages(prev => {
+      const next = [...prev]
+      next[currentSlide] = b64
+      return next
+    })
+  }
+
   const handleLoadLibraryImage = async () => {
     const imgs = await window.api.images.get()
     if (!imgs.length) {
@@ -1181,6 +1193,7 @@ export default function Generator() {
               offsetY2={getTextSettings(currentSlide).offsetY2}
               textColor={textColor}
               textAlign={textAlign}
+              onDoubleClick={slides.length ? handlePickImageForSlide : undefined}
               onOffsetChange={slides.length ? (x, y) => updateTextSettings(currentSlide, { offsetX: x, offsetY: y }) : undefined}
               onOffset2Change={slides.length && slides[currentSlide]?.text2 ? (x, y) => updateTextSettings(currentSlide, { offsetX2: x, offsetY2: y }) : undefined}
             />
@@ -1189,7 +1202,7 @@ export default function Generator() {
             <p className="text-[11px] text-tiktok-muted text-center mt-1.5">
               {slides[currentSlide]?.text2
                 ? 'Obere Hälfte (A) oder untere Hälfte (B) ziehen'
-                : 'Text ziehen, um ihn zu verschieben'}
+                : 'Ziehen zum Verschieben · Doppelklick zum Bild wählen'}
             </p>
           )}
         </div>
