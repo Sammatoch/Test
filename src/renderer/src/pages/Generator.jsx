@@ -2,7 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
 import {
   Wand2, ChevronLeft, ChevronRight, Image, FolderOpen,
-  Download, Copy, Check, Loader2, Save, Plus, Zap, Pencil, TrendingUp, BookOpen, RefreshCw, Images
+  Download, Copy, Check, Loader2, Save, Plus, Zap, Pencil, TrendingUp, BookOpen, RefreshCw, Images,
+  AlignLeft, AlignCenter
 } from 'lucide-react'
 import TikTokPreview from '../components/TikTokPreview.jsx'
 import { renderSlideToDataURL, DEFAULT_FONT_SIZE, DIALOG_OFFSET_Y1, DIALOG_OFFSET_Y2 } from '../lib/renderSlide.js'
@@ -138,6 +139,7 @@ export default function Generator() {
   const [copiedPromptIdx, setCopiedPromptIdx] = useState(null)
   const [globalFontSize, setGlobalFontSize] = useState(DEFAULT_FONT_SIZE)
   const [textColor, setTextColor] = useState('#ffffff')
+  const [textAlign, setTextAlign] = useState('center')
   const [textSettings, setTextSettings] = useState([])
 
   const [viralHashtags, setViralHashtags] = useState([])
@@ -180,6 +182,7 @@ export default function Generator() {
         setManualImageSort(saved.manualImageSort ?? 'name')
         if (saved.globalFontSize) setGlobalFontSize(saved.globalFontSize)
         if (saved.textColor) setTextColor(saved.textColor)
+        if (saved.textAlign) setTextAlign(saved.textAlign)
         if (typeof saved.useCoverLastSlide === 'boolean') setUseCoverLastSlide(saved.useCoverLastSlide)
         const indexingOn = typeof saved.useIndexing === 'boolean' ? saved.useIndexing : true
         setUseIndexing(indexingOn)
@@ -216,11 +219,11 @@ export default function Generator() {
     if (!hydrated.current) return
     saveSession({
       bookTitle, niche, situation, hook, perspective, language, provider, stylePreference, imageProvider, globalFontSize,
-      useCoverLastSlide, useIndexing, manualImageFolder, manualImageSort, textColor,
+      useCoverLastSlide, useIndexing, manualImageFolder, manualImageSort, textColor, textAlign,
       // Text only — strip nothing, slides hold only text/label/imagePrompt
       slides, hookSummary, visualStyle, textSettings
     })
-  }, [bookTitle, niche, situation, hook, perspective, language, provider, stylePreference, imageProvider, globalFontSize, useCoverLastSlide, useIndexing, manualImageFolder, manualImageSort, textColor, slides, hookSummary, visualStyle, textSettings])
+  }, [bookTitle, niche, situation, hook, perspective, language, provider, stylePreference, imageProvider, globalFontSize, useCoverLastSlide, useIndexing, manualImageFolder, manualImageSort, textColor, textAlign, slides, hookSummary, visualStyle, textSettings])
 
   useEffect(() => {
     if (location.state?.hook) setHook(location.state.hook)
@@ -597,7 +600,7 @@ export default function Generator() {
         const text = getDisplayText(slides[i], i)
         const ts = getTextSettings(i)
         const dataUrl = await renderSlideToDataURL(text, i, slides.length, slideImages[i] || null,
-          { ...ts, text2: slides[i].text2 || '', textColor }
+          { ...ts, text2: slides[i].text2 || '', textColor, textAlign }
         )
         const base64 = dataUrl.replace(/^data:image\/png;base64,/, '')
         const num = String(i + 1).padStart(2, '0')
@@ -1177,6 +1180,7 @@ export default function Generator() {
               offsetX2={getTextSettings(currentSlide).offsetX2}
               offsetY2={getTextSettings(currentSlide).offsetY2}
               textColor={textColor}
+              textAlign={textAlign}
               onOffsetChange={slides.length ? (x, y) => updateTextSettings(currentSlide, { offsetX: x, offsetY: y }) : undefined}
               onOffset2Change={slides.length && slides[currentSlide]?.text2 ? (x, y) => updateTextSettings(currentSlide, { offsetX2: x, offsetY2: y }) : undefined}
             />
@@ -1267,6 +1271,36 @@ export default function Generator() {
                 </button>
               )}
             </div>
+          </div>
+        )}
+
+        {slides.length > 0 && (
+          <div className="space-y-1.5">
+            <label className="text-xs text-tiktok-muted uppercase tracking-wider">
+              Textausrichtung (alle Slides)
+            </label>
+            <div className="flex gap-2">
+              {[
+                { value: 'center', label: 'Zentriert', Icon: AlignCenter },
+                { value: 'left', label: 'Linksbündig', Icon: AlignLeft }
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => setTextAlign(opt.value)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs rounded-lg border transition-colors ${
+                    textAlign === opt.value
+                      ? 'border-tiktok-red bg-tiktok-red/10 text-tiktok-red font-medium'
+                      : 'border-tiktok-border text-tiktok-muted hover:text-white hover:border-white/30'
+                  }`}
+                >
+                  <opt.Icon size={14} />
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-tiktok-muted leading-snug">
+              Tipp: Im Slide-Text mit der <span className="text-white">Enter</span>-Taste eigene Zeilenumbrüche setzen (Stift-Symbol zum Bearbeiten).
+            </p>
           </div>
         )}
 

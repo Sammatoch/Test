@@ -15,6 +15,7 @@ export default function TikTokPreview({
   offsetX2 = 0,
   offsetY2 = 0,
   textColor = '#ffffff',
+  textAlign = 'center',
   onOffsetChange,
   onOffset2Change
 }) {
@@ -35,12 +36,12 @@ export default function TikTokPreview({
       drawSlide(ctx, {
         text, text2,
         index: currentSlide, total: slides?.length || 0, img,
-        fontSize, offsetX, offsetY, offsetX2, offsetY2, textColor
+        fontSize, offsetX, offsetY, offsetX2, offsetY2, textColor, textAlign
       })
     })
 
     return () => { cancelled = true }
-  }, [slides, currentSlide, imageBase64, fontSize, offsetX, offsetY, offsetX2, offsetY2, textColor])
+  }, [slides, currentSlide, imageBase64, fontSize, offsetX, offsetY, offsetX2, offsetY2, textColor, textAlign])
 
   const handlePointerDown = (e) => {
     if (!onOffsetChange && !onOffset2Change) return

@@ -23,16 +23,22 @@ function wrapText(ctx, text, maxWidth) {
 }
 
 // Returns the centerY of the rendered text block (used for avatar placement)
-function drawTextBlock(ctx, text, { fontSize, offsetX, offsetY, maxWidth, color = '#ffffff' }) {
+function drawTextBlock(ctx, text, { fontSize, offsetX, offsetY, maxWidth, color = '#ffffff', align = 'center' }) {
   const rawLines = text.split('\n')
   const allLines = []
   for (const rawLine of rawLines) {
+    // Preserve intentionally blank lines (e.g. a double Enter) instead of dropping them
+    if (rawLine.trim() === '') { allLines.push(''); continue }
     const wrapped = wrapText(ctx, rawLine, maxWidth)
     allLines.push(...wrapped)
   }
   const lineHeight = fontSize * 1.3
   const totalHeight = allLines.length * lineHeight
-  const centerX = CANVAS_W / 2 + offsetX
+  // Left-aligned text starts at the left edge of the centered text column; centered text uses the middle
+  ctx.textAlign = align === 'left' ? 'left' : 'center'
+  const x = align === 'left'
+    ? (CANVAS_W - maxWidth) / 2 + offsetX
+    : CANVAS_W / 2 + offsetX
   const startY = CANVAS_H / 2 - totalHeight / 2 + fontSize + offsetY
 
   ctx.shadowColor = 'rgba(0,0,0,0.9)'
@@ -42,7 +48,7 @@ function drawTextBlock(ctx, text, { fontSize, offsetX, offsetY, maxWidth, color 
 
   allLines.forEach((line, i) => {
     ctx.fillStyle = color
-    ctx.fillText(line, centerX, startY + i * lineHeight)
+    ctx.fillText(line, x, startY + i * lineHeight)
   })
 
   ctx.shadowColor = 'transparent'
@@ -59,7 +65,8 @@ export function drawSlide(ctx, {
   fontSize = DEFAULT_FONT_SIZE,
   offsetX = 0, offsetY = 0,
   offsetX2 = 0, offsetY2 = 0,
-  textColor = '#ffffff'
+  textColor = '#ffffff',
+  textAlign = 'center'
 }) {
   ctx.clearRect(0, 0, CANVAS_W, CANVAS_H)
 
@@ -103,7 +110,7 @@ export function drawSlide(ctx, {
   ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, Arial, sans-serif`
   ctx.textAlign = 'center'
 
-  drawTextBlock(ctx, text, { fontSize, offsetX, offsetY, maxWidth, color: textColor })
+  drawTextBlock(ctx, text, { fontSize, offsetX, offsetY, maxWidth, color: textColor, align: textAlign })
 
   if (text2) {
     // Separator line between the two speakers
@@ -118,7 +125,7 @@ export function drawSlide(ctx, {
     ctx.stroke()
     ctx.restore()
 
-    drawTextBlock(ctx, text2, { fontSize, offsetX: offsetX2, offsetY: offsetY2, maxWidth, color: textColor })
+    drawTextBlock(ctx, text2, { fontSize, offsetX: offsetX2, offsetY: offsetY2, maxWidth, color: textColor, align: textAlign })
   }
 }
 
