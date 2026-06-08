@@ -160,12 +160,21 @@ ipcMain.handle('viral:fetchTranscript', async (_, { videoUrl, language, useAiFal
 })
 
 // Export
+const exportDir = () => path.join(app.getPath('desktop'), 'TikTok Exports')
+
 ipcMain.handle('export:post', async (_, imageBase64, filename) => {
-  const desktopPath = path.join(app.getPath('desktop'), 'TikTok Exports')
+  const desktopPath = exportDir()
   if (!fs.existsSync(desktopPath)) fs.mkdirSync(desktopPath, { recursive: true })
   const filePath = path.join(desktopPath, filename)
   const buf = Buffer.from(imageBase64, 'base64')
   fs.writeFileSync(filePath, buf)
-  shell.openPath(desktopPath)
   return filePath
+})
+
+// Open the export folder once — called after all slides have been written
+ipcMain.handle('export:openFolder', async () => {
+  const desktopPath = exportDir()
+  if (!fs.existsSync(desktopPath)) fs.mkdirSync(desktopPath, { recursive: true })
+  shell.openPath(desktopPath)
+  return desktopPath
 })

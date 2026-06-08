@@ -41,7 +41,8 @@ contextBridge.exposeInMainWorld('api', {
     readAsBase64: (filePath) => ipcRenderer.invoke('references:readAsBase64', filePath)
   },
   export: {
-    post: (imageBase64, filename) => ipcRenderer.invoke('export:post', imageBase64, filename)
+    post: (imageBase64, filename) => ipcRenderer.invoke('export:post', imageBase64, filename),
+    openFolder: () => ipcRenderer.invoke('export:openFolder')
   },
   viral: {
     scrape: (query, maxResults) => ipcRenderer.invoke('viral:scrape', query, maxResults),

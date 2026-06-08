@@ -589,6 +589,8 @@ export default function Generator() {
         const num = String(i + 1).padStart(2, '0')
         lastPath = await window.api.export.post(base64, `tiktok_${stamp}_slide${num}.png`)
       }
+      // Open the export folder once, after all files are written
+      await window.api.export.openFolder()
       showSuccess(`${slides.length} Slides exportiert nach: ${lastPath.replace(/[^\\/]+$/, '')}`)
     } catch (e) {
       setError(e.message)
