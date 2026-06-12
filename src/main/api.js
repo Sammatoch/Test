@@ -64,7 +64,9 @@ function buildViralMechanics(book) {
 - SLIDE 1 = SCROLL-STOPPER. Sie entscheidet in <1 Sekunde alles. Pflicht: EIN mutiger, konkreter Satz, der sofort einen Nerv trifft (Schmerz, Wunsch, Überraschung oder "verbotenes" Wissen). Verboten: Begrüßung, Vorgeplänkel, "In diesem Post…", "Hier sind…". Die erste Zeile muss wie ein Daumen-Stopp wirken.
 - OFFENE SCHLEIFE (Open Loop): Jede Slide erzeugt eine kleine offene Frage, die NUR durch Weiterswipen beantwortet wird. Der Leser muss unbedingt wissen wollen, was als Nächstes kommt — baue Mini-Cliffhanger ein.
 - KONKRET schlägt GENERISCH: echte Zahlen, Zeiträume, sensorische Details, spezifische Momente ("3 Wochen lang", "um 5 Uhr morgens", "Teig klebte an allen Fingern") statt Floskeln ("es war schwer", "es hat nicht geklappt").
-- EMOTIONALE TRIGGER: Identifikation ("das bin genau ich"), Schmerz, Sehnsucht, Aha-Moment oder leichte Kontroverse. Mindestens eine Slide soll so treffen, dass man kommentieren MUSS.
+- ZIELGRUPPEN-STIMME: Schreibe aus dem Inneren der Zielgruppe heraus — nicht wie ein Außenstehender der erklärt was sie fühlen, sondern wie jemand der ihren stillen Selbstgespräch-Ton exakt kennt. Welche Wörter benutzt diese Person wenn sie allein ist und das Problem in Gedanken durchgeht? Diese exakte Sprache gehört in jeden Slide — nicht die Außenperspektive, die innere Stimme.
+- „DAS BIN GENAU ICH"-FORMEL: Der stärkste emotionale Trigger folgt dieser Formel: KONKRETER MOMENT + INNERSTER GEDANKE + stille Scham oder Sehnsucht. Nicht "es hat nicht funktioniert" → sondern "du hast heimlich gegooglet ob du der einzige bist dem das nicht gelingt." Mindestens ZWEI Slides müssen exakt nach dieser Formel getextet sein.
+- KOMMENTAR-ZWANG: Mindestens EINE Slide (nicht die letzte) muss eine Aussage enthalten, die zwei Lager aufspaltet — eine leicht kontroverse These oder Entweder-Oder-Behauptung, auf die man antworten MUSS (entweder zustimmen oder widersprechen). Kein "stimmt ihr zu?" — eine echte Aussage die reibt.
 - EINE Idee pro Slide. Kurz, gesprochen, wie zu einer guten Freundin. Keine Schachtelsätze, keine Werbesprache.
 - SAVE-WÜRDIG: Mindestens eine Slide liefert einen konkreten, sofort nützlichen Tipp/Aha-Moment, den man sich speichern will.
 - CTA NATIV & WERTBASIERT (nur letzte Slide): kein plumpes "Kauf jetzt". Stattdessen den konkreten Nutzen rahmen ("Die komplette Schritt-für-Schritt-Anleitung steht in '${book}'") + sanfter Handlungsimpuls. Es muss sich wie ein ehrlicher Tipp anfühlen, nicht wie Werbung.`
@@ -112,6 +114,12 @@ Ausgabe-Sprache: ${languageLabel}
 WICHTIG: Buchtitel immer in der Originalsprache: "${bookTitle}"
 
 ${buildViralMechanics(bookTitle)}
+
+VORARBEIT PFLICHT — bevor du einen einzigen Slide schreibst:
+Stelle dir vor, du bist diese Person: Jemand aus der Nische "${niche}", mitten in der Situation "${situation}".
+Was geht ihr still durch den Kopf — nicht was sie in einem Kommentar schreiben würde, sondern was sie denkt wenn sie allein ist und das Problem nicht zuzugeben traut?
+Welche Sätze wiederholt sie innerlich? Welche stille Scham oder Sehnsucht trägt sie mit sich?
+Diese innere Stimme ist die Tonlage für ALLE Slides.
 
 ${textRules}
 
@@ -573,6 +581,7 @@ SCHRITT 1 — VIRALE DNA EXTRAHIEREN (denke das gründlich durch, bevor du Slide
 - HOOK-TYP: Welches bewährte Muster nutzt Slide 1? (z.B. kontroverse Aussage, "Dinge die ich zu spät gelernt habe", POV, Vorher/Nachher, Fehler-Geständnis, "niemand redet über…", Mini-Story)
 - SPANNUNGS-MECHANIK: Welche offene Frage hält die Zuschauer bis zum Ende? Warum swipen/schauen sie weiter?
 - STÄRKSTER EMOTIONALER TRIGGER: Was genau löst die Reaktion aus (Identifikation, Schmerz, Sehnsucht, Aha, Kontroverse)?
+- INNERE STIMME: Welche stillen Gedanken oder Sätze der Zielgruppe spricht dieses Video laut aus — Dinge, die man sonst nicht sagt aber ständig denkt? Diese exakte Tonlage und diese Formulierungen müssen in SCHRITT 2 übernommen werden.
 - WARUM KOMMENTIEREN/TEILEN/SPEICHERN die Leute? (Die Kennzahlen geben Hinweise: hohe Like-/Kommentar-Rate = starker Trigger.)
 → Fasse diese DNA in EINEM prägnanten Satz im Feld "hookSummary" zusammen (das ist die Begründung der Viralität).
 
@@ -581,6 +590,8 @@ SCHRITT 2 — DIESELBE DNA FÜR "${book}" NACHBAUEN:
 - Erstelle 6-8 kurze Slides. Slide 1 = derselbe Scroll-Stopper-Typ wie im Original
 - Jede Slide: offene Schleife zur nächsten, konkret statt generisch, eine Idee pro Slide
 - Mindestens eine save-würdige Slide (konkreter Tipp/Aha-Moment)
+- Mindestens ZWEI Slides nach der „DAS BIN GENAU ICH"-Formel: KONKRETER MOMENT + INNERSTER GEDANKE + stille Scham oder Sehnsucht (nicht "es war frustrierend" → sondern "du hast heimlich gegooglet ob du der einzige bist dem das nicht gelingt")
+- Mindestens EINE Slide (nicht die letzte) mit Kommentar-Zwang: eine leicht kontroverse These oder Entweder-Oder-Aussage, auf die man antworten MUSS — kein "stimmt ihr zu?", eine echte Aussage die reibt
 - Letzter Slide: nativer, wertbasierter CTA für "${book}" (kein plumpes "Kauf jetzt" — ehrlicher Tipp-Ton)
 - Ausgabe-Sprache: ${languageLabel}
 - "text2" IMMER leer lassen: ""${styleNote}
