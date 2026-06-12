@@ -365,12 +365,11 @@ export default function Generator() {
   }
 
   const composeBatchPrompt = () => {
-    const header = 'Generate images based on the number in the list below. Use the prompt stated in the list for each image. Make sure to use 9:16 aspect ratio:'
+    const header = 'Generate images based on the number in the list below. Use the prompt stated in the list for each image. Make sure to use 9:16 aspect ratio. Important: never render any text, words, letters or captions into the images:'
     const entries = slides.map((slide, idx) => {
       const label = slide.label ? `Slide ${idx + 1} – ${slide.label}` : `Slide ${idx + 1}`
-      const text = getDisplayText(slide, idx)
       const prompt = isCoverSlide(idx) ? composeCoverSlidePrompt() : composeImagePrompt(slide)
-      return `${label}\n\nText:\n„${text}"\n\nPrompt:\n${prompt}`
+      return `${label}\n\nPrompt:\n${prompt}`
     })
     return header + '\n\n' + entries.join('\n\n')
   }
