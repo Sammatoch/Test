@@ -146,6 +146,7 @@ export default function Generator() {
   const [postDescription, setPostDescription] = useState('')
   const [copiedTitle, setCopiedTitle] = useState(false)
   const [copiedDescription, setCopiedDescription] = useState(false)
+  const [copiedBatchPrompt, setCopiedBatchPrompt] = useState(false)
   const [currentSlide, setCurrentSlide] = useState(0)
 
   const [visualStyle, setVisualStyle] = useState('')
@@ -361,6 +362,25 @@ export default function Generator() {
     const scene = `${source} Render it as a real, physical printed book placed naturally in a cozy scene — for example lying on a rustic wooden kitchen table next to fresh bread, or held in someone's hands. Keep the cover artwork, title and design exactly as in the reference image(s), clearly visible and readable as the main subject. Warm, inviting cinematic lighting, photorealistic, vertical 9:16 portrait.`
     if (visualStyle) return `${prefix}Overall visual style of the series: ${visualStyle}. ${scene}`
     return prefix + scene
+  }
+
+  const composeBatchPrompt = () => {
+    const header = 'Generate images based on the number in the list below. Use the prompt stated in the list for each image. Make sure to use 9:16 aspect ratio:'
+    const entries = slides.map((slide, idx) => {
+      const label = slide.label ? `Slide ${idx + 1} – ${slide.label}` : `Slide ${idx + 1}`
+      const text = getDisplayText(slide, idx)
+      const prompt = isCoverSlide(idx) ? composeCoverSlidePrompt() : composeImagePrompt(slide)
+      return `${label}\n\nText:\n„${text}"\n\nPrompt:\n${prompt}`
+    })
+    return header + '\n\n' + entries.join('\n\n')
+  }
+
+  const handleCopyBatchPrompt = async () => {
+    if (!slides.length) return
+    const prompt = composeBatchPrompt()
+    await navigator.clipboard.writeText(prompt)
+    setCopiedBatchPrompt(true)
+    setTimeout(() => setCopiedBatchPrompt(false), 2000)
   }
 
   const handleSelectRefFolder = async (folderPath) => {
@@ -1107,6 +1127,14 @@ export default function Generator() {
                     />
                   </button>
                 </div>
+                <button
+                  onClick={handleCopyBatchPrompt}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-tiktok-red/10 hover:bg-tiktok-red/20 border border-tiktok-red/30 text-tiktok-red text-xs rounded-lg transition-colors"
+                  title="Alle Slides als ChatGPT-Batch-Prompt kopieren (9:16, kein Text im Bild)"
+                >
+                  {copiedBatchPrompt ? <Check size={12} /> : <Copy size={12} />}
+                  {copiedBatchPrompt ? 'Kopiert!' : 'ChatGPT-Prompt'}
+                </button>
                 <button
                   onClick={handleSavePost}
                   disabled={saving}
