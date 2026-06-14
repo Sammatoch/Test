@@ -266,6 +266,7 @@ export default function Generator() {
   useEffect(() => {
     if (location.state?.hook) setHook(location.state.hook)
     if (location.state?.situation) setSituation(location.state.situation)
+    if (location.state?.perspective) setPerspective(location.state.perspective)
     // slides may arrive as an array or, from a tool_use object, as a keyed object — normalize both
     const raw = location.state?.slides
     const slidesArr = Array.isArray(raw) ? raw : (raw && typeof raw === 'object' ? Object.values(raw) : [])

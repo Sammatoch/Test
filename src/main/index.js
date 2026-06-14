@@ -149,9 +149,9 @@ ipcMain.handle('viral:analyze', async (_, videos) => {
   return analyzeViralContent(videos, settings)
 })
 
-ipcMain.handle('viral:analyzeVideo', async (_, { transcript, stats, hasRealTranscript, bookTitle, language, stylePreference }) => {
+ipcMain.handle('viral:analyzeVideo', async (_, { transcript, stats, hasRealTranscript, bookTitle, language, stylePreference, perspective }) => {
   const settings = store.settings.get()
-  return analyzeTranscriptForSlides({ transcript, stats, hasRealTranscript, bookTitle, language, stylePreference, settings })
+  return analyzeTranscriptForSlides({ transcript, stats, hasRealTranscript, bookTitle, language, stylePreference, perspective, settings })
 })
 
 ipcMain.handle('viral:fetchTranscript', async (_, { videoUrl, language, useAiFallback }) => {

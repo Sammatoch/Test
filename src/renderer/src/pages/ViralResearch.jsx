@@ -79,6 +79,7 @@ function VideoDetailPanel({ video, onClose, onSlidesGenerated }) {
     [text, hashtags].filter(Boolean).join('\n\n')
   )
   const [bookTitle, setBookTitle] = useState('')
+  const [perspective, setPerspective] = useState('single')
   const [analyzing, setAnalyzing] = useState(false)
   const [fetchingTranscript, setFetchingTranscript] = useState(false)
   const [transcriptLoaded, setTranscriptLoaded] = useState(false)
@@ -115,10 +116,11 @@ function VideoDetailPanel({ video, onClose, onSlidesGenerated }) {
         hasRealTranscript: transcriptLoaded,
         bookTitle: bookTitle.trim() || undefined,
         language: 'de',
-        stylePreference: ''
+        stylePreference: '',
+        perspective
       })
       if (!result?.slides?.length) throw new Error('Keine Slides generiert')
-      onSlidesGenerated(result)
+      onSlidesGenerated({ ...result, perspective })
     } catch (e) {
       setError(e.message || 'Fehler bei der Analyse')
     } finally {
@@ -187,6 +189,34 @@ function VideoDetailPanel({ video, onClose, onSlidesGenerated }) {
           placeholder="z.B. Mein Sauerteigbuch"
           className="w-full bg-black border border-tiktok-border rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-tiktok-cyan placeholder-tiktok-muted"
         />
+      </div>
+
+      <div>
+        <p className="text-[11px] text-tiktok-muted mb-1.5">Modus</p>
+        <div className="flex gap-2">
+          {[
+            { value: 'single', label: 'Normal', desc: 'Eine Stimme, Monolog' },
+            { value: 'alternating', label: 'Dialog', desc: '2 Personen, max. 8 Wörter' }
+          ].map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => setPerspective(opt.value)}
+              className={`flex-1 py-1.5 text-xs rounded-lg border transition-colors ${
+                perspective === opt.value
+                  ? 'border-tiktok-red bg-tiktok-red/10 text-tiktok-red font-medium'
+                  : 'border-tiktok-border text-tiktok-muted hover:text-white hover:border-white/30'
+              }`}
+              title={opt.desc}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        {perspective === 'alternating' && (
+          <p className="text-[10px] text-tiktok-muted mt-1 leading-snug">
+            Jede Slide zeigt 2 Personen im Dialog · max. 8 Wörter pro Person · 8–10 Slides
+          </p>
+        )}
       </div>
 
       {error && (
@@ -359,7 +389,8 @@ export default function ViralResearch() {
         visualStyle: result.visualStyle,
         hookSummary: result.hookSummary,
         title: result.title,
-        description: result.description
+        description: result.description,
+        perspective: result.perspective
       }
     })
   }

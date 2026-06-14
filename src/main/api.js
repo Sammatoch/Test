@@ -551,13 +551,37 @@ export async function fetchTikTokTranscript({ videoUrl, language = 'de', useAiFa
   return { text, videoId: data?.id || '', url: data?.url || videoUrl }
 }
 
-export async function analyzeTranscriptForSlides({ transcript, stats, hasRealTranscript, bookTitle, language = 'de', stylePreference = '', settings }) {
+export async function analyzeTranscriptForSlides({ transcript, stats, hasRealTranscript, bookTitle, language = 'de', stylePreference = '', perspective = 'single', settings }) {
   if (!settings.anthropicKey) throw new Error('Bitte Anthropic API-Key in Einstellungen hinterlegen')
   if (!transcript?.trim()) throw new Error('Kein Transkript vorhanden')
 
   const languageLabel = language === 'de' ? 'Deutsch' : language === 'en' ? 'English' : language
   const book = bookTitle?.trim() || 'mein Buch'
   const styleNote = stylePreference ? `\nBildstil: "${stylePreference}" — baue den visualStyle um diesen Stil auf.` : ''
+  const isDialog = perspective === 'alternating'
+
+  const slideRules = isDialog
+    ? `- DIALOG-MODUS: 8-10 Slides, jede Slide hat ZWEI kurze Sprechertexte
+- "text": Aussage Person A (erscheint OBEN) — MAXIMAL 8 WÖRTER, eine einzige Zeile, kein Zeilenumbruch
+- "text2": Reaktion Person B (erscheint UNTEN) — MAXIMAL 8 WÖRTER, eine einzige Zeile, kein Zeilenumbruch
+- Kein "A:"/"B:"-Prefix, nur den reinen kurzen Satz
+- Slide 1: Person A mit demselben Scroll-Stopper-Hook-Typ wie im Original, Person B reagiert so dass man unbedingt weiterswipen muss
+- Jede Slide baut Spannung auf die nächste auf (offene Schleife), extrem knapp, konkret, emotional
+- Letzter Slide: text = nativer wertbasierter Hinweis auf "${book}" (max. 8 Wörter), text2 = sanfter Handlungsimpuls (max. 8 Wörter)
+- "text2" enthält die Antwort von Person B — NIE leer lassen`
+    : `- MONOLOG-MODUS: Erstelle 6-8 kurze Slides. Slide 1 = derselbe Scroll-Stopper-Typ wie im Original
+- Jede Slide: offene Schleife zur nächsten, konkret statt generisch, eine Idee pro Slide
+- Mindestens ZWEI Slides nach der „DAS BIN GENAU ICH"-Formel: KONKRETER MOMENT + INNERSTER GEDANKE + stille Scham oder Sehnsucht (z.B. statt "es war frustrierend" → "du hast heimlich gegooglet ob du der einzige bist dem das nicht gelingt")
+- Mindestens EINE Slide (nicht die letzte) mit Kommentar-Zwang: eine leicht kontroverse These oder Entweder-Oder-Aussage, auf die man antworten MUSS — kein "stimmt ihr zu?", eine echte Aussage die reibt
+- Letzter Slide: nativer, wertbasierter CTA für "${book}" (kein plumpes "Kauf jetzt" — ehrlicher Tipp-Ton)
+- "text2" IMMER leer lassen: ""`
+
+  const dialogImageNote = isDialog
+    ? '\nDIALOG-PFLICHT: Jedes Bild MUSS ZWEI Personen zeigen — Person A im oberen Bildbereich, Person B im unteren Bildbereich (z.B. gegenüber an einem Tisch, oder zwei Bereiche in derselben Küche).'
+    : ''
+  const jsonSlideExample = isDialog
+    ? `{"text":"Person A (max 8 Wörter)","text2":"Person B (max 8 Wörter)","label":"","imagePrompt":"...","showsBook":false}`
+    : `{"text":"...","text2":"","label":"","imagePrompt":"...","showsBook":false}`
 
   const fmtNum = n => !n ? '0' : n >= 1000000 ? (n / 1000000).toFixed(1) + 'M' : n >= 1000 ? Math.round(n / 1000) + 'K' : String(n)
   const statsNote = stats ? `\nViral-Kennzahlen dieses Videos: ${fmtNum(stats.views)} Aufrufe, ${fmtNum(stats.likes)} Likes, ${fmtNum(stats.comments)} Kommentare — nutze diese Zahlen um einzuschätzen WIE viral der Content ist und WARUM er so gut performt.` : ''
@@ -587,20 +611,14 @@ SCHRITT 1 — VIRALE DNA EXTRAHIEREN (denke das gründlich durch, bevor du Slide
 
 SCHRITT 2 — DIESELBE DNA FÜR "${book}" NACHBAUEN:
 - Übernimm Hook-Typ, Spannungs-Mechanik und emotionalen Trigger 1:1 — aber mit Inhalten rund um "${book}" und das Thema des Buchs
-- Erstelle 6-8 kurze Slides. Slide 1 = derselbe Scroll-Stopper-Typ wie im Original
-- Jede Slide: offene Schleife zur nächsten, konkret statt generisch, eine Idee pro Slide
-- Mindestens eine save-würdige Slide (konkreter Tipp/Aha-Moment)
-- Mindestens ZWEI Slides nach der „DAS BIN GENAU ICH"-Formel: KONKRETER MOMENT + INNERSTER GEDANKE + stille Scham oder Sehnsucht (nicht "es war frustrierend" → sondern "du hast heimlich gegooglet ob du der einzige bist dem das nicht gelingt")
-- Mindestens EINE Slide (nicht die letzte) mit Kommentar-Zwang: eine leicht kontroverse These oder Entweder-Oder-Aussage, auf die man antworten MUSS — kein "stimmt ihr zu?", eine echte Aussage die reibt
-- Letzter Slide: nativer, wertbasierter CTA für "${book}" (kein plumpes "Kauf jetzt" — ehrlicher Tipp-Ton)
-- Ausgabe-Sprache: ${languageLabel}
-- "text2" IMMER leer lassen: ""${styleNote}
+${slideRules}
+- Ausgabe-Sprache: ${languageLabel}${styleNote}
 
 Bild-Prompt Pflicht-Struktur (auf Englisch):
 1. Location: "in a [spezifischer authentischer Ort]"
 2. Scene: "Show [Figur + Emotion] [konkrete Handlung] [sensorische Details]"
 3. Atmosphere: "[Stimmung], warm natural daylight, painterly texture, not glossy, not advertising"
-NIEMALS Text/Wörter/Buchstaben im Bild. "showsBook" = true wenn ein Buch sichtbar ist.
+NIEMALS Text/Wörter/Buchstaben im Bild. "showsBook" = true wenn ein Buch sichtbar ist.${dialogImageNote}
 
 Erstelle außerdem (basierend auf der extrahierten viralen DNA):
 - "title": EIN viraler, scroll-stoppender Titel für die Slideshow in ${languageLabel} (max. 8 Wörter, kein abschließender Punkt)
@@ -608,7 +626,7 @@ Erstelle außerdem (basierend auf der extrahierten viralen DNA):
 
 Antworte NUR mit diesem JSON (kein Markdown):
 {
-  "slides": [{"text":"...","text2":"","label":"","imagePrompt":"...","showsBook":false}],
+  "slides": [${jsonSlideExample}],
   "visualStyle": "ONE consistent visual style for ALL slides",
   "hookSummary": "Die extrahierte virale DNA in einem Satz (Hook-Typ + Trigger + warum es funktioniert)",
   "title": "Viraler Titel der Slideshow (max. 8 Wörter)",
