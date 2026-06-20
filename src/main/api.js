@@ -55,29 +55,6 @@ const GEMINI_SCHEMA = {
   required: ['slides', 'visualStyle', 'hookSummary', 'title', 'description']
 }
 
-// Pool of varied settings/characters so different slideshows don't all default to the same
-// "person in a kitchen" framing. One entry is picked per generation as a starting suggestion.
-const SETTING_POOL = [
-  { setting: 'a cluttered home office at night, laptop glow, stacks of paper', character: 'a man in his 40s wearing a wrinkled hoodie' },
-  { setting: 'a quiet park bench at dusk, autumn leaves', character: 'a woman in her 20s wearing an oversized cardigan' },
-  { setting: 'a gym locker room or empty gym floor early morning', character: 'a man in his 30s wearing athletic wear, visibly tired' },
-  { setting: 'a small balcony with a coffee cup, city rooftops in the background', character: 'a woman in her 50s wearing a linen robe' },
-  { setting: 'the inside of a parked car at night, streetlights through the windshield', character: 'a man in his 20s wearing a denim jacket' },
-  { setting: 'a cramped student apartment bedroom, fairy lights, laundry pile', character: 'a young woman in her early 20s wearing an oversized t-shirt' },
-  { setting: 'a public library reading corner, stacks of books', character: 'a man in his 60s wearing a cardigan and glasses' },
-  { setting: 'a bathroom mirror at night, toothbrush in hand', character: 'a woman in her 30s wearing pajamas' },
-  { setting: 'a co-working space with other blurred people in the background', character: 'a man in his 30s wearing a casual shirt' },
-  { setting: 'a kitchen table cluttered with bills and a laptop, not the stereotypical clean cooking kitchen', character: 'a woman in her 40s wearing a worn cardigan' },
-  { setting: 'a hospital or clinic waiting room', character: 'a man in his 50s wearing a plain jacket' },
-  { setting: 'a garden or balcony with plants, early sunlight', character: 'a woman in her 60s wearing a gardening apron' },
-  { setting: 'a subway or train seat, commuting', character: 'a man in his 20s wearing a backpack and headphones' },
-  { setting: 'a messy garage workshop with tools', character: 'a man in his 40s wearing a flannel shirt' },
-  { setting: 'a cozy reading nook with a blanket and tea', character: 'a woman in her 30s wearing a knit sweater' }
-]
-function pickRandomSetting() {
-  return SETTING_POOL[Math.floor(Math.random() * SETTING_POOL.length)]
-}
-
 // Shared, expert-level rules on what actually makes TikTok slideshows perform.
 // TikTok rewards watch-time, swipe-through rate, rewatches, saves and comments —
 // every rule below targets one of those mechanics.
@@ -104,7 +81,6 @@ function buildPrompt(params) {
       : 'Eine Perspektive (innerer Monolog)'
 
   const isDialog = perspective === 'alternating'
-  const settingSuggestion = pickRandomSetting()
 
   const textRules = isDialog
     ? `Regeln für den Text (DIALOG-Modus — PFLICHT):
@@ -149,8 +125,7 @@ ${textRules}
 
 Regeln für den durchgängigen Bild-Stil (visualStyle):
 - Definiere EINEN einzigen, durchgängigen visuellen Stil für die GESAMTE Slideshow${stylePreference ? `\n- PFLICHT: Der Kunst-/Bildstil MUSS sein: "${stylePreference}". Baue den gesamten visualStyle um diesen Stil herum auf und erwähne ihn explizit.` : ''}
-- VERBOT: Greife NICHT automatisch auf "Person in einer Küche" zurück — das ist die Standard-Falle. Vorschlag für Setting & Hauptfigur dieser Slideshow (nutze es, wenn es zur Situation "${situation}" passt, oder ersetze es durch etwas Passenderes — Hauptsache es ist NICHT die übliche Küchen-Szene): Setting = "${settingSuggestion.setting}", Hauptfigur = "${settingSuggestion.character}"
-- Dieser Stil beschreibt: Bildstil/Medium (z.B. cinematic photo, warm film look), Farbpalette, Licht/Stimmung, wiederkehrende Hauptfigur (gleiches Aussehen, Kleidung), ein gemeinsamer Setting-Rahmen — aber mit Raum für unterschiedliche Bereiche, Kamerawinkel und Einstellungsgrößen pro Slide (siehe Bild-Varianz-Regeln unten)
+- Dieser Stil beschreibt: Bildstil/Medium (z.B. cinematic photo, warm film look), Farbpalette, Licht/Stimmung, wiederkehrende Hauptfigur (gleiches Aussehen, Kleidung), ein gemeinsamer Setting-Rahmen (z.B. dieselbe Wohnung/Küche) — aber mit Raum für unterschiedliche Bereiche, Kamerawinkel und Einstellungsgrößen pro Slide (siehe Bild-Varianz-Regeln unten)
 - Sehr konkret und detailliert, damit alle Bilder wie aus EINER Serie wirken
 - Auf Englisch
 
@@ -167,7 +142,7 @@ ${imageStylePreset === 'photorealistic'
 - WICHTIG: Wenn eine Figur gezeigt wird, immer mit konkreter Kleidungsbeschreibung (z.B. "woman in her 30s wearing a faded blue denim shirt, loose linen pants, bare feet") und exakter Pose/Haltung (z.B. "leaning over the counter, both hands kneading dough")`
   : `- PFLICHT-STRUKTUR für jeden imagePrompt (auf Englisch — malerisch-künstlerisch):
   0. Shot-Type: lege bewusst eine andere Einstellungsgröße fest als die vorherige Slide (siehe Bild-Varianz-Regeln)
-  1. Location: "in a [spezifischer Ort passend zum gewählten Setting, ggf. anderer Bereich desselben Settings]"
+  1. Location: "in a [spezifischer Ort, z.B. cozy German apartment kitchen / warm home bakery, ggf. anderer Bereich desselben Settings]"
   2. Scene: "Show [bei Personen-Shots: Figur + emotionaler Zustand — ODER bei gesichtsfreien Shots: nur Hände/Objekt/Detail, KEIN Gesicht] [konkrete Handlung] [Objekt-Details: Textur, Zustand, Props]"
   3. Atmosphere: "[Stimmung], warm natural daylight, painterly texture, not glossy, not advertising, soft background blur"`}
 
@@ -597,7 +572,6 @@ export async function analyzeTranscriptForSlides({ transcript, stats, hasRealTra
   const book = bookTitle?.trim() || 'mein Buch'
   const styleNote = stylePreference ? `\nBildstil: "${stylePreference}" — baue den visualStyle um diesen Stil auf.` : ''
   const isDialog = perspective === 'alternating'
-  const settingSuggestion = pickRandomSetting()
 
   const slideRules = isDialog
     ? `- DIALOG-MODUS: 8-10 Slides, jede Slide hat ZWEI kurze Sprechertexte
@@ -652,8 +626,6 @@ SCHRITT 2 — DIESELBE DNA FÜR "${book}" NACHBAUEN:
 - Übernimm Hook-Typ, Spannungs-Mechanik und emotionalen Trigger 1:1 — aber mit Inhalten rund um "${book}" und das Thema des Buchs
 ${slideRules}
 - Ausgabe-Sprache: ${languageLabel}${styleNote}
-
-VERBOT: Greife NICHT automatisch auf "Person in einer Küche" zurück — das ist die Standard-Falle. Vorschlag für Setting & Hauptfigur (nutze es, wenn es zum Video-Content passt, oder ersetze es durch etwas Passenderes — Hauptsache es ist NICHT die übliche Küchen-Szene): Setting = "${settingSuggestion.setting}", Hauptfigur = "${settingSuggestion.character}"
 
 Bild-Prompt Pflicht-Struktur (auf Englisch):
 0. Shot-Type: lege bewusst eine andere Einstellungsgröße fest als die vorherige Slide (siehe Bild-Varianz-Regeln unten)
