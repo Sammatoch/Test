@@ -125,26 +125,39 @@ ${textRules}
 
 Regeln für den durchgängigen Bild-Stil (visualStyle):
 - Definiere EINEN einzigen, durchgängigen visuellen Stil für die GESAMTE Slideshow${stylePreference ? `\n- PFLICHT: Der Kunst-/Bildstil MUSS sein: "${stylePreference}". Baue den gesamten visualStyle um diesen Stil herum auf und erwähne ihn explizit.` : ''}
-- Dieser Stil beschreibt: Bildstil/Medium (z.B. cinematic photo, warm film look), Farbpalette, Licht/Stimmung, wiederkehrende Hauptfigur (gleiches Aussehen, Kleidung), gleicher Schauplatz/Setting
+- Dieser Stil beschreibt: Bildstil/Medium (z.B. cinematic photo, warm film look), Farbpalette, Licht/Stimmung, wiederkehrende Hauptfigur (gleiches Aussehen, Kleidung), ein gemeinsamer Setting-Rahmen (z.B. dieselbe Wohnung/Küche) — aber mit Raum für unterschiedliche Bereiche, Kamerawinkel und Einstellungsgrößen pro Slide (siehe Bild-Varianz-Regeln unten)
 - Sehr konkret und detailliert, damit alle Bilder wie aus EINER Serie wirken
 - Auf Englisch
 
 Regeln für die Bild-Prompts:
 - JEDE Slide bekommt einen EIGENEN, individuellen Bild-Prompt (imagePrompt)
-- WICHTIG: Jeder imagePrompt MUSS exakt zum definierten visualStyle passen (gleiche Figur, gleiches Setting, gleiche Farben, gleiches Licht) — es soll wie dieselbe Bildserie aussehen
-- Es ändert sich nur die konkrete Szene/Handlung passend zum Text dieser Slide
+- WICHTIG: Jeder imagePrompt MUSS zum definierten visualStyle passen (gleiche Figur wenn sichtbar, gleiche Farben, gleiches Licht, gleicher Setting-Rahmen) — es soll wie dieselbe Bildserie aussehen
+- Es ändert sich die konkrete Szene/Handlung passend zum Text dieser Slide UND die Einstellungsgröße/der Kamerawinkel (siehe unten) — NICHT jede Slide zeigt dieselbe Frontalansicht derselben Person am selben Fleck
 ${imageStylePreset === 'photorealistic'
   ? `- PFLICHT-STRUKTUR für jeden imagePrompt (auf Englisch — fotorealistisch-filmisch):
-  1. Location: "in a [spezifischer authentischer Ort]"
-  2. Scene: "Show [Figur: genaues Alter, Geschlecht, Kleidung — Farbe/Material/Schnitt, Körperhaltung/Pose, Mimik] [konkrete Handlung] [sensorische Details: Licht, Texturen, Props]"
+  0. Shot-Type: lege bewusst eine andere Einstellungsgröße fest als die vorherige Slide (siehe Bild-Varianz-Regeln)
+  1. Location: "in a [spezifischer authentischer Ort, ggf. anderer Bereich desselben Settings]"
+  2. Scene: "Show [bei Personen-Shots: Figur mit genauem Alter, Geschlecht, Kleidung — Farbe/Material/Schnitt, Körperhaltung/Pose, Mimik — ODER bei gesichtsfreien Shots: nur Hände/Objekt/Detail, KEIN Gesicht] [konkrete Handlung] [sensorische Details: Licht, Texturen, Props]"
   3. Atmosphere: "[Stimmung], natural daylight or soft window light, photorealistic 35mm film look, cinematic, not illustrated, not painted, not advertising"
-- WICHTIG: Jede Figur immer mit konkreter Kleidungsbeschreibung (z.B. "woman in her 30s wearing a faded blue denim shirt, loose linen pants, bare feet") und exakter Pose/Haltung (z.B. "leaning over the counter, both hands kneading dough")`
+- WICHTIG: Wenn eine Figur gezeigt wird, immer mit konkreter Kleidungsbeschreibung (z.B. "woman in her 30s wearing a faded blue denim shirt, loose linen pants, bare feet") und exakter Pose/Haltung (z.B. "leaning over the counter, both hands kneading dough")`
   : `- PFLICHT-STRUKTUR für jeden imagePrompt (auf Englisch — malerisch-künstlerisch):
-  1. Location: "in a [spezifischer Ort, z.B. cozy German apartment kitchen / warm home bakery]"
-  2. Scene: "Show [Figur + emotionaler Zustand] [konkrete Handlung] [Objekt-Details: Textur, Zustand, Props]"
+  0. Shot-Type: lege bewusst eine andere Einstellungsgröße fest als die vorherige Slide (siehe Bild-Varianz-Regeln)
+  1. Location: "in a [spezifischer Ort, z.B. cozy German apartment kitchen / warm home bakery, ggf. anderer Bereich desselben Settings]"
+  2. Scene: "Show [bei Personen-Shots: Figur + emotionaler Zustand — ODER bei gesichtsfreien Shots: nur Hände/Objekt/Detail, KEIN Gesicht] [konkrete Handlung] [Objekt-Details: Textur, Zustand, Props]"
   3. Atmosphere: "[Stimmung], warm natural daylight, painterly texture, not glossy, not advertising, soft background blur"`}
+
+Regeln für Bild-Varianz (PFLICHT — sonst wirkt die Slideshow eintönig und monoton):
+- SHOT-TYPE ROTATION: Wechsle die Einstellungsgröße von Slide zu Slide bewusst durch, nutze nicht zweimal hintereinander dieselbe:
+  1. Extreme Nahaufnahme/Makro: nur Hände, Objekt oder Detail, OHNE Gesicht (z.B. Hände im Teig, Brotkrume, Handy-Display, Notizbuch)
+  2. Medium Shot: Person von der Hüfte aufwärts, in Handlung
+  3. Weite/Establishing Shot: ganzer Raum sichtbar, Person klein im Bild
+  4. Over-the-shoulder oder POV: Blick über die Schulter der Person, oder durch ihre Augen auf eine Szene/ein Objekt
+  5. Flat-Lay von oben: Objekte/Essen von oben fotografiert, kein Gesicht sichtbar
+- PFLICHT: Mindestens 2-3 Slides der gesamten Slideshow sind GESICHTSFREIE Detail-/Objekt-Shots (nur Hände, nur das Ergebnis/Objekt, nur ein Gegenstand) — nicht jede Slide braucht ein sichtbares Gesicht
+- ORT-VARIANZ INNERHALB DES SETTINGS: Auch wenn Hauptfigur und Grundstil gleich bleiben, wechsle die konkrete Position/den Bereich (z.B. an der Arbeitsplatte, am Tisch, am Fenster, vor dem Ofen, auf dem Boden sitzend) — nicht jede Slide an derselben Stelle im selben Winkel
+- KAMERAWINKEL VARIIEREN: nicht immer frontal auf Augenhöhe — auch leicht von oben, von unten, schräg von der Seite
 - Sehr konkret und sensorisch: Textur des Teigs/Brots/Materials, Mehlstaub, nasse Hände, Holzoberflächen, etc.
-- WICHTIG: NIEMALS Text, Wörter, Buchstaben, Beschriftungen oder Untertitel im Bild — der imagePrompt darf keinerlei Textinhalte aus "text" oder "text2" enthalten${isDialog ? '\n- DIALOG-MODUS: Jedes Bild MUSS ZWEI Personen zeigen — Person A im oberen Bildbereich, Person B im unteren Bildbereich sichtbar' : ''}
+- WICHTIG: NIEMALS Text, Wörter, Buchstaben, Beschriftungen oder Untertitel im Bild — der imagePrompt darf keinerlei Textinhalte aus "text" oder "text2" enthalten${isDialog ? '\n- DIALOG-MODUS: Jedes Bild MUSS ZWEI Personen zeigen — Person A im oberen Bildbereich, Person B im unteren Bildbereich sichtbar (Shot-Type-Rotation gilt hier für die gemeinsame Einstellungsgröße beider Personen)' : ''}
 
 Regel für "showsBook" (Buch im Bild):
 - Setze "showsBook" = true für JEDE Slide, in deren Szene ein Buch zu sehen ist (z.B. jemand hält ein Buch, liest darin, das Buch liegt auf dem Tisch)
@@ -615,9 +628,16 @@ ${slideRules}
 - Ausgabe-Sprache: ${languageLabel}${styleNote}
 
 Bild-Prompt Pflicht-Struktur (auf Englisch):
-1. Location: "in a [spezifischer authentischer Ort]"
-2. Scene: "Show [Figur + Emotion] [konkrete Handlung] [sensorische Details]"
+0. Shot-Type: lege bewusst eine andere Einstellungsgröße fest als die vorherige Slide (siehe Bild-Varianz-Regeln unten)
+1. Location: "in a [spezifischer authentischer Ort, ggf. anderer Bereich desselben Settings]"
+2. Scene: "Show [bei Personen-Shots: Figur + Emotion — ODER bei gesichtsfreien Shots: nur Hände/Objekt/Detail, KEIN Gesicht] [konkrete Handlung] [sensorische Details]"
 3. Atmosphere: "[Stimmung], warm natural daylight, painterly texture, not glossy, not advertising"
+
+Regeln für Bild-Varianz (PFLICHT — sonst wirkt die Slideshow eintönig und monoton):
+- SHOT-TYPE ROTATION: Wechsle die Einstellungsgröße von Slide zu Slide bewusst durch, nutze nicht zweimal hintereinander dieselbe: 1. Extreme Nahaufnahme/Makro (nur Hände/Objekt/Detail, OHNE Gesicht), 2. Medium Shot (Person von der Hüfte aufwärts, in Handlung), 3. Weite/Establishing Shot (ganzer Raum sichtbar, Person klein im Bild), 4. Over-the-shoulder/POV, 5. Flat-Lay von oben (Objekte ohne Gesicht)
+- PFLICHT: Mindestens 2-3 Slides der gesamten Slideshow sind GESICHTSFREIE Detail-/Objekt-Shots
+- ORT-VARIANZ INNERHALB DES SETTINGS: konkrete Position/Bereich wechseln (z.B. Arbeitsplatte, Tisch, Fenster, Boden), nicht jede Slide an derselben Stelle
+- KAMERAWINKEL VARIIEREN: nicht immer frontal auf Augenhöhe — auch leicht von oben, von unten, schräg von der Seite
 NIEMALS Text/Wörter/Buchstaben im Bild. "showsBook" = true wenn ein Buch sichtbar ist.${dialogImageNote}
 
 Erstelle außerdem (basierend auf der extrahierten viralen DNA):
