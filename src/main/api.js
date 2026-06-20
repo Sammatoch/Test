@@ -311,7 +311,7 @@ export async function generateContent(params, settings) {
     if (!settings.geminiKey) throw new Error('Bitte Gemini API-Key in Einstellungen hinterlegen')
     const genAI = new GoogleGenerativeAI(settings.geminiKey)
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.5-flash',
       generationConfig: { responseMimeType: 'application/json', responseSchema: GEMINI_SCHEMA }
     })
     const result = await model.generateContent(prompt)
