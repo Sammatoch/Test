@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import OpenAI, { toFile } from 'openai'
-import { GoogleGenAI, Type } from '@google/genai'
+import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai'
+import { GoogleGenAI } from '@google/genai'
 
 const POST_SCHEMA = {
   type: 'object',
@@ -30,32 +31,27 @@ const POST_SCHEMA = {
 }
 
 const GEMINI_SCHEMA = {
-  type: Type.OBJECT,
+  type: SchemaType.OBJECT,
   properties: {
     slides: {
-      type: Type.ARRAY,
+      type: SchemaType.ARRAY,
       items: {
-        type: Type.OBJECT,
+        type: SchemaType.OBJECT,
         properties: {
-          text: { type: Type.STRING },
-          text2: { type: Type.STRING },
-          label: { type: Type.STRING },
-          imagePrompt: { type: Type.STRING },
-          showsBook: { type: Type.BOOLEAN }
+          text: { type: SchemaType.STRING },
+          text2: { type: SchemaType.STRING },
+          label: { type: SchemaType.STRING },
+          imagePrompt: { type: SchemaType.STRING },
+          showsBook: { type: SchemaType.BOOLEAN }
         },
-        // propertyOrdering forces Gemini to fill imagePrompt right after the text fields
-        // instead of treating it as an afterthought — without it, Gemini tends to leave
-        // imagePrompt empty on long, instruction-heavy prompts.
-        propertyOrdering: ['text', 'text2', 'label', 'imagePrompt', 'showsBook'],
         required: ['text', 'text2', 'label', 'imagePrompt', 'showsBook']
       }
     },
-    visualStyle: { type: Type.STRING },
-    hookSummary: { type: Type.STRING },
-    title: { type: Type.STRING },
-    description: { type: Type.STRING }
+    visualStyle: { type: SchemaType.STRING },
+    hookSummary: { type: SchemaType.STRING },
+    title: { type: SchemaType.STRING },
+    description: { type: SchemaType.STRING }
   },
-  propertyOrdering: ['slides', 'visualStyle', 'hookSummary', 'title', 'description'],
   required: ['slides', 'visualStyle', 'hookSummary', 'title', 'description']
 }
 
@@ -313,13 +309,13 @@ export async function generateContent(params, settings) {
 
   if (provider === 'gemini') {
     if (!settings.geminiKey) throw new Error('Bitte Gemini API-Key in Einstellungen hinterlegen')
-    const ai = new GoogleGenAI({ apiKey: settings.geminiKey })
-    const res = await withRetry(() => ai.models.generateContent({
+    const genAI = new GoogleGenerativeAI(settings.geminiKey)
+    const model = genAI.getGenerativeModel({
       model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: { responseMimeType: 'application/json', responseSchema: GEMINI_SCHEMA, maxOutputTokens: 8192 }
-    }))
-    return normalizeResult(parseAIResponse(res.text))
+      generationConfig: { responseMimeType: 'application/json', responseSchema: GEMINI_SCHEMA }
+    })
+    const result = await model.generateContent(prompt)
+    return normalizeResult(parseAIResponse(result.response.text()))
   }
 
   throw new Error(`Unbekannter Provider: ${provider}`)
