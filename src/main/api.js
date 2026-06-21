@@ -25,9 +25,10 @@ const POST_SCHEMA = {
     visualStyle: { type: 'string' },
     hookSummary: { type: 'string' },
     title: { type: 'string' },
-    description: { type: 'string' }
+    description: { type: 'string' },
+    musicPrompt: { type: 'string' }
   },
-  required: ['slides', 'visualStyle', 'hookSummary', 'title', 'description']
+  required: ['slides', 'visualStyle', 'hookSummary', 'title', 'description', 'musicPrompt']
 }
 
 const GEMINI_SCHEMA = {
@@ -50,9 +51,10 @@ const GEMINI_SCHEMA = {
     visualStyle: { type: SchemaType.STRING },
     hookSummary: { type: SchemaType.STRING },
     title: { type: SchemaType.STRING },
-    description: { type: SchemaType.STRING }
+    description: { type: SchemaType.STRING },
+    musicPrompt: { type: SchemaType.STRING }
   },
-  required: ['slides', 'visualStyle', 'hookSummary', 'title', 'description']
+  required: ['slides', 'visualStyle', 'hookSummary', 'title', 'description', 'musicPrompt']
 }
 
 // Shared, expert-level rules on what actually makes TikTok slideshows perform.
@@ -156,13 +158,20 @@ Regeln für den viralen Titel & die Beschreibung (basierend auf deiner Analyse o
 - "title": EIN viraler, scroll-stoppender Titel für die gesamte Slideshow in ${languageLabel} (max. 8 Wörter). Greift denselben Nerv/Trigger wie Slide 1 auf — neugierig machend, konkret, kein Clickbait-Müll. Kein abschließender Punkt.
 - "description": EINE kurze, knackige Beschreibung/Caption in ${languageLabel} (1-2 Sätze, max. ~200 Zeichen). Verstärkt den emotionalen Trigger, erzeugt Neugier und endet mit einem sanften Engagement-Impuls (z.B. eine Frage oder Aufforderung zum Speichern/Kommentieren). Passend zum Buch "${bookTitle}" und der Nische "${niche}".
 
+Regeln für "musicPrompt" (Hintergrundmusik für die Slideshow):
+- Ein englischer Prompt zur Musik-Generierung (z.B. für Gemini/Lyria), passend zur emotionalen Tonalität von Hook und Slideshow
+- PFLICHT: instrumental only, no vocals, no lyrics, no singing — das muss explizit im Prompt stehen
+- Beschreibe: Genre/Stil, Tempo (BPM-Bereich oder langsam/mittel/treibend), Instrumentierung, Stimmung — passend zum emotionalen Bogen (z.B. nachdenklich-melancholisch am Anfang, hoffnungsvoll/motivierend zum Ende)
+- Kurz und konkret, 1-2 Sätze auf Englisch, direkt als Prompt nutzbar
+
 Antworte NUR mit folgendem JSON (kein Markdown, kein Extra-Text):
 {
   "slides": [${jsonExample}],
   "visualStyle": "ONE consistent visual style for ALL slides: medium, color palette, lighting, recurring character & setting",
   "hookSummary": "One sentence why this is viral",
   "title": "Viraler Titel der Slideshow (max. 8 Wörter)",
-  "description": "Kurze, knackige Beschreibung/Caption (1-2 Sätze) mit Engagement-Impuls"
+  "description": "Kurze, knackige Beschreibung/Caption (1-2 Sätze) mit Engagement-Impuls",
+  "musicPrompt": "Instrumental-only background music prompt in English, no vocals"
 }`
 }
 
@@ -231,7 +240,8 @@ function normalizeResult(result) {
     visualStyle: result?.visualStyle || '',
     hookSummary: result?.hookSummary || '',
     title: result?.title || '',
-    description: result?.description || ''
+    description: result?.description || '',
+    musicPrompt: result?.musicPrompt || ''
   }
 }
 
@@ -623,6 +633,7 @@ NIEMALS Text/Wörter/Buchstaben im Bild. "showsBook" = true wenn ein Buch sichtb
 Erstelle außerdem (basierend auf der extrahierten viralen DNA):
 - "title": EIN viraler, scroll-stoppender Titel für die Slideshow in ${languageLabel} (max. 8 Wörter, kein abschließender Punkt)
 - "description": EINE kurze, knackige Caption in ${languageLabel} (1-2 Sätze, max. ~200 Zeichen) mit Engagement-Impuls (Frage/Aufforderung), passend zu "${book}"
+- "musicPrompt": Ein englischer Prompt zur Musik-Generierung, passend zur emotionalen Tonalität der Slideshow. PFLICHT: instrumental only, no vocals, no lyrics — explizit im Prompt erwähnen. Beschreibe Genre, Tempo, Instrumentierung, Stimmung. Kurz, 1-2 Sätze, direkt nutzbar.
 
 Antworte NUR mit diesem JSON (kein Markdown):
 {
@@ -630,7 +641,8 @@ Antworte NUR mit diesem JSON (kein Markdown):
   "visualStyle": "ONE consistent visual style for ALL slides",
   "hookSummary": "Die extrahierte virale DNA in einem Satz (Hook-Typ + Trigger + warum es funktioniert)",
   "title": "Viraler Titel der Slideshow (max. 8 Wörter)",
-  "description": "Kurze, knackige Caption (1-2 Sätze) mit Engagement-Impuls"
+  "description": "Kurze, knackige Caption (1-2 Sätze) mit Engagement-Impuls",
+  "musicPrompt": "Instrumental-only background music prompt in English, no vocals"
 }`
 
   const client = new Anthropic({ apiKey: settings.anthropicKey })

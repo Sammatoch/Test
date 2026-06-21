@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom'
 import {
   Wand2, ChevronLeft, ChevronRight, Image, FolderOpen,
   Download, Copy, Check, Loader2, Save, Plus, Zap, Pencil, TrendingUp, BookOpen, RefreshCw, Images,
-  AlignLeft, AlignCenter
+  AlignLeft, AlignCenter, Music
 } from 'lucide-react'
 import TikTokPreview from '../components/TikTokPreview.jsx'
 import { renderSlideToDataURL, DEFAULT_FONT_SIZE, DIALOG_OFFSET_Y1, DIALOG_OFFSET_Y2 } from '../lib/renderSlide.js'
@@ -144,8 +144,10 @@ export default function Generator() {
   const [hookSummary, setHookSummary] = useState('')
   const [postTitle, setPostTitle] = useState('')
   const [postDescription, setPostDescription] = useState('')
+  const [musicPrompt, setMusicPrompt] = useState('')
   const [copiedTitle, setCopiedTitle] = useState(false)
   const [copiedDescription, setCopiedDescription] = useState(false)
+  const [copiedMusicPrompt, setCopiedMusicPrompt] = useState(false)
   const [copiedBatchPrompt, setCopiedBatchPrompt] = useState(false)
   const [currentSlide, setCurrentSlide] = useState(0)
 
@@ -235,6 +237,7 @@ export default function Generator() {
           setHookSummary(saved.hookSummary ?? '')
           setPostTitle(saved.postTitle ?? '')
           setPostDescription(saved.postDescription ?? '')
+          setMusicPrompt(saved.musicPrompt ?? '')
           setVisualStyle(saved.visualStyle ?? '')
           if (indexingOn) computeIndexed(saved.slides).then(setIndexedTexts)
         }
@@ -259,9 +262,9 @@ export default function Generator() {
       bookTitle, niche, situation, hook, perspective, language, provider, stylePreference, imageStylePreset, imageProvider, globalFontSize,
       useCoverLastSlide, useIndexing, manualImageFolder, manualImageSort, textColor, textAlign,
       // Text only — strip nothing, slides hold only text/label/imagePrompt
-      slides, hookSummary, postTitle, postDescription, visualStyle, textSettings
+      slides, hookSummary, postTitle, postDescription, musicPrompt, visualStyle, textSettings
     })
-  }, [bookTitle, niche, situation, hook, perspective, language, provider, stylePreference, imageStylePreset, imageProvider, globalFontSize, useCoverLastSlide, useIndexing, manualImageFolder, manualImageSort, textColor, textAlign, slides, hookSummary, postTitle, postDescription, visualStyle, textSettings])
+  }, [bookTitle, niche, situation, hook, perspective, language, provider, stylePreference, imageStylePreset, imageProvider, globalFontSize, useCoverLastSlide, useIndexing, manualImageFolder, manualImageSort, textColor, textAlign, slides, hookSummary, postTitle, postDescription, musicPrompt, visualStyle, textSettings])
 
   useEffect(() => {
     if (location.state?.hook) setHook(location.state.hook)
@@ -284,6 +287,7 @@ export default function Generator() {
       if (location.state.hookSummary) setHookSummary(location.state.hookSummary)
       if (location.state.title) setPostTitle(location.state.title)
       if (location.state.description) setPostDescription(location.state.description)
+      if (location.state.musicPrompt) setMusicPrompt(location.state.musicPrompt)
       if (useIndexing) computeIndexed(normalized).then(setIndexedTexts)
       setTimeout(() => slidesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150)
     }
@@ -475,6 +479,7 @@ export default function Generator() {
     setHookSummary('')
     setPostTitle('')
     setPostDescription('')
+    setMusicPrompt('')
     setVisualStyle('')
     setSlideImages([])
     setIndexedTexts([])
@@ -517,6 +522,7 @@ export default function Generator() {
       setHookSummary(result?.hookSummary || '')
       setPostTitle(result?.title || '')
       setPostDescription(result?.description || '')
+      setMusicPrompt(result?.musicPrompt || '')
       setVisualStyle(result?.visualStyle || '')
       // TikTok-Indexing is on by default — apply it to the freshly generated texts
       if (useIndexing) setIndexedTexts(await computeIndexed(normalized))
@@ -752,6 +758,13 @@ export default function Generator() {
     await navigator.clipboard.writeText(postDescription)
     setCopiedDescription(true)
     setTimeout(() => setCopiedDescription(false), 1500)
+  }
+
+  const handleCopyMusicPrompt = async () => {
+    if (!musicPrompt) return
+    await navigator.clipboard.writeText(musicPrompt)
+    setCopiedMusicPrompt(true)
+    setTimeout(() => setCopiedMusicPrompt(false), 1500)
   }
 
   const handleSelectHook = (h) => {
@@ -1060,6 +1073,43 @@ export default function Generator() {
           ) : (
             <p className="text-[11px] text-tiktok-muted leading-snug">
               Noch kein Titel. Generiere Content — ein viraler Titel und eine kurze Beschreibung werden aus derselben Analyse erstellt.
+            </p>
+          )}
+        </div>
+
+        {/* Background music prompt, derived from the same emotional analysis — paste into Gemini/Lyria etc. */}
+        <div className="mt-2 pt-3 border-t border-tiktok-border">
+          <div className="flex items-center gap-1.5 mb-2">
+            <Music size={13} className="text-tiktok-cyan" />
+            <span className="text-xs font-medium text-tiktok-muted uppercase tracking-wider">Musik-Prompt</span>
+          </div>
+          {musicPrompt ? (
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] text-tiktok-muted uppercase tracking-wider">Instrumental, ohne Stimme</span>
+                <button
+                  onClick={handleCopyMusicPrompt}
+                  className="flex items-center gap-1 text-[11px] text-tiktok-muted hover:text-tiktok-cyan transition-colors"
+                  title="Musik-Prompt kopieren"
+                >
+                  {copiedMusicPrompt ? <Check size={11} className="text-tiktok-cyan" /> : <Copy size={11} />}
+                  {copiedMusicPrompt ? 'Kopiert!' : 'Kopieren'}
+                </button>
+              </div>
+              <div
+                onClick={handleCopyMusicPrompt}
+                className="cursor-pointer rounded-lg bg-black border border-tiktok-border hover:border-tiktok-cyan/40 px-3 py-2 transition-colors"
+                title="Klicken zum Kopieren"
+              >
+                <p className="text-tiktok-muted text-xs leading-relaxed">{musicPrompt}</p>
+              </div>
+              <p className="text-[10px] text-tiktok-muted mt-1.5 leading-snug">
+                Passend zur Stimmung der Slideshow, auf Englisch, ohne Gesang. Einfach in Gemini (oder ein anderes Musik-Tool) einfügen.
+              </p>
+            </div>
+          ) : (
+            <p className="text-[11px] text-tiktok-muted leading-snug">
+              Noch kein Musik-Prompt. Generiere Content — ein passender, instrumentaler Musik-Prompt wird aus derselben Analyse erstellt.
             </p>
           )}
         </div>

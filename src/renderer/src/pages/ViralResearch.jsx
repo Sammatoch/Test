@@ -390,6 +390,7 @@ export default function ViralResearch() {
         hookSummary: result.hookSummary,
         title: result.title,
         description: result.description,
+        musicPrompt: result.musicPrompt,
         perspective: result.perspective
       }
     })
