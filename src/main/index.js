@@ -1,8 +1,8 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron'
 import path from 'path'
 import fs from 'fs'
 import { initStore, store } from './store.js'
-import { generateContent, generateImage, applyTikTokIndexing } from './api.js'
+import { generateContent, generateImage, applyTikTokIndexing, scrapeViralTikToks, scrapeTikTokTrends, analyzeViralContent, analyzeTranscriptForSlides, fetchTikTokTranscript } from './api.js'
 
 let mainWindow
 
@@ -65,6 +65,11 @@ ipcMain.handle('images:get', () => store.images.get())
 ipcMain.handle('images:saveFromBase64', (_, base64, prompt) => store.images.saveFromBase64(base64, prompt))
 ipcMain.handle('images:delete', (_, id) => store.images.delete(id))
 ipcMain.handle('images:getFilePath', (_, id) => store.images.getFilePath(id))
+ipcMain.handle('images:readAsBase64', (_, id) => {
+  const fp = store.images.getFilePath(id)
+  if (!fp || !fs.existsSync(fp)) return null
+  return fs.readFileSync(fp).toString('base64')
+})
 
 // Generation
 ipcMain.handle('generate:content', async (_, params) => {
@@ -72,20 +77,109 @@ ipcMain.handle('generate:content', async (_, params) => {
   return generateContent(params, settings)
 })
 
-ipcMain.handle('generate:image', async (_, prompt) => {
+ipcMain.handle('generate:image', async (_, prompt, imageProvider, referenceImages) => {
   const settings = store.settings.get()
-  return generateImage(prompt, settings)
+  return generateImage(prompt, settings, imageProvider, referenceImages)
 })
 
 ipcMain.handle('generate:tiktokText', (_, text) => applyTikTokIndexing(text))
 
+// Reference images
+const IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.webp', '.gif']
+
+ipcMain.handle('dialog:selectFolder', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] })
+  if (result.canceled || !result.filePaths.length) return null
+  return result.filePaths[0]
+})
+
+ipcMain.handle('dialog:selectImageFile', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile'],
+    filters: [{ name: 'Bilder', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }]
+  })
+  if (result.canceled || !result.filePaths.length) return null
+  return result.filePaths[0]
+})
+
+ipcMain.handle('references:listFolders', (_, baseDir) => {
+  if (!baseDir || !fs.existsSync(baseDir)) return []
+  const folders = [{ name: '(Hauptordner)', path: baseDir }]
+  try {
+    for (const entry of fs.readdirSync(baseDir, { withFileTypes: true })) {
+      if (entry.isDirectory()) folders.push({ name: entry.name, path: path.join(baseDir, entry.name) })
+    }
+  } catch { /* ignore unreadable dir */ }
+  return folders
+})
+
+ipcMain.handle('references:listImages', (_, folderPath) => {
+  if (!folderPath || !fs.existsSync(folderPath)) return []
+  try {
+    return fs.readdirSync(folderPath, { withFileTypes: true })
+      .filter(e => e.isFile() && IMAGE_EXTS.includes(path.extname(e.name).toLowerCase()))
+      .map(e => {
+        const full = path.join(folderPath, e.name)
+        let mtimeMs = 0, birthtimeMs = 0
+        try {
+          const st = fs.statSync(full)
+          mtimeMs = st.mtimeMs
+          birthtimeMs = st.birthtimeMs
+        } catch { /* ignore unreadable file */ }
+        return { name: e.name, path: full, mtimeMs, birthtimeMs }
+      })
+  } catch {
+    return []
+  }
+})
+
+ipcMain.handle('references:readAsBase64', (_, filePath) => {
+  if (!filePath || !fs.existsSync(filePath)) return null
+  return fs.readFileSync(filePath).toString('base64')
+})
+
+// Viral Research
+ipcMain.handle('viral:scrape', async (_, { query, mode, maxResults, robust }) => {
+  const settings = store.settings.get()
+  return scrapeViralTikToks({ query, mode, maxResults, robust, apifyKey: settings.apifyKey })
+})
+
+ipcMain.handle('viral:trends', async (_, { countryCode, maxResults }) => {
+  const settings = store.settings.get()
+  return scrapeTikTokTrends({ countryCode, maxResults, apifyKey: settings.apifyKey })
+})
+
+ipcMain.handle('viral:analyze', async (_, videos) => {
+  const settings = store.settings.get()
+  return analyzeViralContent(videos, settings)
+})
+
+ipcMain.handle('viral:analyzeVideo', async (_, { transcript, stats, hasRealTranscript, bookTitle, language, stylePreference, perspective }) => {
+  const settings = store.settings.get()
+  return analyzeTranscriptForSlides({ transcript, stats, hasRealTranscript, bookTitle, language, stylePreference, perspective, settings })
+})
+
+ipcMain.handle('viral:fetchTranscript', async (_, { videoUrl, language, useAiFallback }) => {
+  const settings = store.settings.get()
+  return fetchTikTokTranscript({ videoUrl, language, useAiFallback, settings })
+})
+
 // Export
+const exportDir = () => path.join(app.getPath('desktop'), 'TikTok Exports')
+
 ipcMain.handle('export:post', async (_, imageBase64, filename) => {
-  const desktopPath = path.join(app.getPath('desktop'), 'TikTok Exports')
+  const desktopPath = exportDir()
   if (!fs.existsSync(desktopPath)) fs.mkdirSync(desktopPath, { recursive: true })
   const filePath = path.join(desktopPath, filename)
   const buf = Buffer.from(imageBase64, 'base64')
   fs.writeFileSync(filePath, buf)
-  shell.openPath(desktopPath)
   return filePath
+})
+
+// Open the export folder once — called after all slides have been written
+ipcMain.handle('export:openFolder', async () => {
+  const desktopPath = exportDir()
+  if (!fs.existsSync(desktopPath)) fs.mkdirSync(desktopPath, { recursive: true })
+  shell.openPath(desktopPath)
+  return desktopPath
 })
