@@ -45,7 +45,8 @@ contextBridge.exposeInMainWorld('api', {
     openFolder: () => ipcRenderer.invoke('export:openFolder')
   },
   viral: {
-    scrape: (query, maxResults) => ipcRenderer.invoke('viral:scrape', query, maxResults),
+    scrape: (params) => ipcRenderer.invoke('viral:scrape', params),
+    trends: (params) => ipcRenderer.invoke('viral:trends', params),
     analyze: (videos) => ipcRenderer.invoke('viral:analyze', videos),
     analyzeVideo: (params) => ipcRenderer.invoke('viral:analyzeVideo', params),
     fetchTranscript: (params) => ipcRenderer.invoke('viral:fetchTranscript', params)

@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron'
 import path from 'path'
 import fs from 'fs'
 import { initStore, store } from './store.js'
-import { generateContent, generateImage, applyTikTokIndexing, scrapeViralTikToks, analyzeViralContent, analyzeTranscriptForSlides, fetchTikTokTranscript } from './api.js'
+import { generateContent, generateImage, applyTikTokIndexing, scrapeViralTikToks, scrapeTikTokTrends, analyzeViralContent, analyzeTranscriptForSlides, fetchTikTokTranscript } from './api.js'
 
 let mainWindow
 
@@ -139,9 +139,14 @@ ipcMain.handle('references:readAsBase64', (_, filePath) => {
 })
 
 // Viral Research
-ipcMain.handle('viral:scrape', async (_, query, maxResults) => {
+ipcMain.handle('viral:scrape', async (_, { query, mode, maxResults, robust }) => {
   const settings = store.settings.get()
-  return scrapeViralTikToks(query, settings.apifyKey, maxResults)
+  return scrapeViralTikToks({ query, mode, maxResults, robust, apifyKey: settings.apifyKey })
+})
+
+ipcMain.handle('viral:trends', async (_, { countryCode, maxResults }) => {
+  const settings = store.settings.get()
+  return scrapeTikTokTrends({ countryCode, maxResults, apifyKey: settings.apifyKey })
 })
 
 ipcMain.handle('viral:analyze', async (_, videos) => {

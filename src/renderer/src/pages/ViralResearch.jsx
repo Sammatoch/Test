@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, TrendingUp, Heart, Play, MessageCircle, Loader2, ArrowRight, AlertCircle, FileText, ChevronDown, ChevronUp, Wand2 } from 'lucide-react'
+import { Search, TrendingUp, Heart, Play, MessageCircle, Loader2, ArrowRight, AlertCircle, FileText, ChevronDown, ChevronUp, Wand2, AtSign, Hash, Music, Flame, Copy, Check } from 'lucide-react'
 
 const fmt = n => {
   if (!n) return '0'
@@ -55,6 +55,41 @@ function VideoCard({ video, index, selected, onClick }) {
       </div>
     </div>
   )
+}
+
+// The trends scraper's output shape isn't fully fixed, so read fields defensively and
+// split items into trending hashtags vs. trending songs. Anything unrecognized is ignored.
+function normalizeTrends(items) {
+  const list = Array.isArray(items) ? items : (items && typeof items === 'object' ? Object.values(items) : [])
+  const hashtags = []
+  const songs = []
+  const seenTags = new Set()
+  const seenSongs = new Set()
+  for (const it of list) {
+    if (!it || typeof it !== 'object') continue
+    const type = String(it.type || it.category || it.trendType || '').toLowerCase()
+    // Hashtag candidates
+    const tagName = it.hashtagName || it.hashtag || (type.includes('hashtag') ? (it.name || it.title) : '')
+    if (tagName) {
+      const clean = String(tagName).replace(/^#/, '').trim()
+      if (clean && !seenTags.has(clean.toLowerCase())) {
+        seenTags.add(clean.toLowerCase())
+        const volume = it.publishCnt || it.videoCount || it.postCount || it.rank || null
+        hashtags.push({ tag: clean, volume })
+      }
+    }
+    // Song candidates
+    const songTitle = it.songName || it.title || it.musicName || (type.includes('song') || type.includes('music') ? it.name : '')
+    const songAuthor = it.author || it.artist || it.singer || it.authorName || ''
+    if ((type.includes('song') || type.includes('music') || it.songName || it.musicName) && songTitle) {
+      const key = (songTitle + '|' + songAuthor).toLowerCase()
+      if (!seenSongs.has(key)) {
+        seenSongs.add(key)
+        songs.push({ title: String(songTitle).trim(), author: String(songAuthor).trim() })
+      }
+    }
+  }
+  return { hashtags, songs, rawCount: list.length }
 }
 
 function getVideoUrl(video) {
@@ -299,11 +334,18 @@ export default function ViralResearch() {
   const hydrated = useRef(false)
   const [query, setQuery] = useState('')
   const [maxResults, setMaxResults] = useState(20)
+  const [mode, setMode] = useState('search') // 'search' | 'profile' | 'hashtag'
+  const [robust, setRobust] = useState(false)
   const [loading, setLoading] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
   const [videos, setVideos] = useState([])
   const [analysis, setAnalysis] = useState(null)
   const [error, setError] = useState('')
+
+  const [trendCountry, setTrendCountry] = useState('DE')
+  const [loadingTrends, setLoadingTrends] = useState(false)
+  const [trends, setTrends] = useState(null) // { hashtags: [...], songs: [...] }
+  const [copiedTrend, setCopiedTrend] = useState(null)
 
   const [selectedVideoIdx, setSelectedVideoIdx] = useState(null)
   const [videoResults, setVideoResults] = useState({})
@@ -313,6 +355,8 @@ export default function ViralResearch() {
     if (saved) {
       if (saved.query) setQuery(saved.query)
       if (saved.maxResults) setMaxResults(saved.maxResults)
+      if (saved.mode) setMode(saved.mode)
+      if (typeof saved.robust === 'boolean') setRobust(saved.robust)
       if (saved.videos?.length) setVideos(saved.videos)
       if (saved.analysis) setAnalysis(saved.analysis)
     }
@@ -321,8 +365,8 @@ export default function ViralResearch() {
 
   useEffect(() => {
     if (!hydrated.current) return
-    saveSession({ query, maxResults, videos, analysis })
-  }, [query, maxResults, videos, analysis])
+    saveSession({ query, maxResults, mode, robust, videos, analysis })
+  }, [query, maxResults, mode, robust, videos, analysis])
 
   const handleSearch = async () => {
     if (!query.trim()) return
@@ -333,9 +377,13 @@ export default function ViralResearch() {
     setSelectedVideoIdx(null)
     setVideoResults({})
     try {
-      const results = await window.api.viral.scrape(query.trim(), maxResults)
+      const results = await window.api.viral.scrape({ query: query.trim(), mode, maxResults, robust })
       if (!Array.isArray(results) || results.length === 0) {
-        throw new Error('Keine Videos gefunden. Versuche einen anderen Suchbegriff.')
+        throw new Error(mode === 'profile'
+          ? 'Keine Videos für dieses Profil gefunden. Prüfe den @Namen.'
+          : mode === 'hashtag'
+            ? 'Keine Videos für diesen Hashtag gefunden.'
+            : 'Keine Videos gefunden. Versuche einen anderen Suchbegriff.')
       }
       const sorted = [...results].sort(
         (a, b) => (b.playCount || b.stats?.playCount || 0) - (a.playCount || a.stats?.playCount || 0)
@@ -346,6 +394,31 @@ export default function ViralResearch() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleLoadTrends = async () => {
+    setError('')
+    setLoadingTrends(true)
+    try {
+      const results = await window.api.viral.trends({ countryCode: trendCountry, maxResults: 30 })
+      setTrends(normalizeTrends(results))
+    } catch (e) {
+      setError(e.message || 'Fehler beim Laden der Trends')
+    } finally {
+      setLoadingTrends(false)
+    }
+  }
+
+  const handleCopyTrend = async (value, key) => {
+    await navigator.clipboard.writeText(value)
+    setCopiedTrend(key)
+    setTimeout(() => setCopiedTrend(null), 1500)
+  }
+
+  // Use a trending hashtag as the next hashtag search
+  const handleSearchTrendHashtag = (tag) => {
+    setMode('hashtag')
+    setQuery(tag)
   }
 
   const handleAnalyze = async () => {
@@ -406,13 +479,57 @@ export default function ViralResearch() {
           <h2 className="text-white font-bold text-base">Viral Research</h2>
           <span className="text-xs text-tiktok-muted bg-tiktok-surface border border-tiktok-border rounded px-2 py-0.5">via Apify</span>
         </div>
+
+        {/* Mode tabs: keyword search · creator profile · hashtag */}
+        <div className="flex items-center gap-2 mb-3">
+          {[
+            { id: 'search', label: 'Suche', icon: Search },
+            { id: 'profile', label: 'Profil', icon: AtSign },
+            { id: 'hashtag', label: 'Hashtag', icon: Hash }
+          ].map(t => {
+            const Icon = t.icon
+            return (
+              <button
+                key={t.id}
+                onClick={() => setMode(t.id)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+                  mode === t.id
+                    ? 'border-tiktok-red bg-tiktok-red/10 text-tiktok-red font-medium'
+                    : 'border-tiktok-border text-tiktok-muted hover:text-white hover:border-white/30'
+                }`}
+              >
+                <Icon size={12} /> {t.label}
+              </button>
+            )
+          })}
+          <label
+            className="ml-auto flex items-center gap-2 text-xs text-tiktok-muted cursor-pointer"
+            title="Nutzt den kostenpflichtigen, zuverlässigeren TikTok-Scraper statt der kostenlosen Version. Verbraucht mehr Apify-Credits, liefert aber stabilere und mehr Ergebnisse."
+          >
+            <span>Robuster Scraper</span>
+            <button
+              type="button"
+              onClick={() => setRobust(v => !v)}
+              className={`relative w-9 h-5 rounded-full transition-colors ${robust ? 'bg-tiktok-red' : 'bg-tiktok-border'}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${robust ? 'translate-x-4' : ''}`} />
+            </button>
+          </label>
+        </div>
+
         <div className="flex gap-3">
           <input
             type="text"
             value={query}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && !loading && handleSearch()}
-            placeholder="TikTok-Suche, z.B. 'Sauerteig backen viral'"
+            placeholder={
+              mode === 'profile'
+                ? 'TikTok-Profil, z.B. @backliebe'
+                : mode === 'hashtag'
+                  ? 'Hashtag, z.B. sauerteig'
+                  : "TikTok-Suche, z.B. 'Sauerteig backen viral'"
+            }
             className="flex-1 bg-black border border-tiktok-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-tiktok-red placeholder-tiktok-muted"
           />
           <select
@@ -430,8 +547,34 @@ export default function ViralResearch() {
             className="flex items-center gap-2 px-4 py-2 bg-tiktok-red hover:bg-red-600 disabled:opacity-40 text-white rounded-lg text-sm font-medium transition-colors"
           >
             {loading ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
-            Suchen
+            {mode === 'profile' ? 'Profil laden' : mode === 'hashtag' ? 'Hashtag laden' : 'Suchen'}
           </button>
+        </div>
+
+        {/* Trending hashtags & songs (TikTok Trend Discovery) */}
+        <div className="mt-3 flex items-center gap-2">
+          <Flame size={14} className="text-tiktok-cyan shrink-0" />
+          <span className="text-xs text-tiktok-muted">Trends:</span>
+          <select
+            value={trendCountry}
+            onChange={e => setTrendCountry(e.target.value)}
+            className="bg-black border border-tiktok-border rounded-lg px-2 py-1 text-white text-xs focus:outline-none focus:border-tiktok-cyan"
+          >
+            <option value="DE">Deutschland</option>
+            <option value="AT">Österreich</option>
+            <option value="CH">Schweiz</option>
+            <option value="US">USA</option>
+            <option value="GB">UK</option>
+          </select>
+          <button
+            onClick={handleLoadTrends}
+            disabled={loadingTrends}
+            className="flex items-center gap-1.5 px-3 py-1 bg-tiktok-cyan/10 hover:bg-tiktok-cyan/20 border border-tiktok-cyan/30 text-tiktok-cyan rounded-lg text-xs font-medium transition-colors disabled:opacity-40"
+          >
+            {loadingTrends ? <Loader2 size={13} className="animate-spin" /> : <TrendingUp size={13} />}
+            {loadingTrends ? 'Lade...' : 'Trending laden'}
+          </button>
+          <span className="text-[10px] text-tiktok-muted">Trending Hashtags & Songs für deine Nische</span>
         </div>
       </div>
 
@@ -443,11 +586,74 @@ export default function ViralResearch() {
           </div>
         )}
 
+        {/* Trending hashtags & songs panel */}
+        {trends && (
+          <div className="mb-6 rounded-xl border border-tiktok-cyan/30 bg-tiktok-cyan/5 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Flame size={15} className="text-tiktok-cyan" />
+              <span className="text-sm font-medium text-white">Trends — {trendCountry}</span>
+            </div>
+            {trends.hashtags.length === 0 && trends.songs.length === 0 ? (
+              <p className="text-xs text-tiktok-muted">
+                Keine Trend-Daten erhalten{trends.rawCount ? ` (${trends.rawCount} Rohdatensätze — evtl. anderes Format als erwartet)` : ''}. Prüfe den Apify-Key oder versuche ein anderes Land.
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Hash size={12} className="text-tiktok-cyan" />
+                    <span className="text-[11px] uppercase tracking-wider text-tiktok-muted font-medium">Trending Hashtags</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {trends.hashtags.length ? trends.hashtags.map((h, i) => (
+                      <button
+                        key={i}
+                        onClick={() => handleSearchTrendHashtag(h.tag)}
+                        title="Als Hashtag-Suche übernehmen"
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg bg-black border border-tiktok-border hover:border-tiktok-cyan/50 text-tiktok-cyan text-xs transition-colors"
+                      >
+                        #{h.tag}{h.volume ? <span className="text-tiktok-muted">· {fmt(h.volume)}</span> : null}
+                      </button>
+                    )) : <span className="text-xs text-tiktok-muted">—</span>}
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Music size={12} className="text-tiktok-cyan" />
+                    <span className="text-[11px] uppercase tracking-wider text-tiktok-muted font-medium">Trending Songs</span>
+                  </div>
+                  <div className="space-y-1">
+                    {trends.songs.length ? trends.songs.map((s, i) => {
+                      const label = s.author ? `${s.title} — ${s.author}` : s.title
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => handleCopyTrend(label, 'song-' + i)}
+                          title="Songtitel kopieren"
+                          className="w-full flex items-center gap-2 px-2 py-1 rounded-lg bg-black border border-tiktok-border hover:border-tiktok-cyan/50 text-left transition-colors"
+                        >
+                          {copiedTrend === 'song-' + i
+                            ? <Check size={12} className="text-tiktok-cyan shrink-0" />
+                            : <Copy size={12} className="text-tiktok-muted shrink-0" />}
+                          <span className="text-xs text-white truncate">{label}</span>
+                        </button>
+                      )
+                    }) : <span className="text-xs text-tiktok-muted">—</span>}
+                  </div>
+                </div>
+              </div>
+            )}
+            <p className="text-[10px] text-tiktok-muted mt-3 leading-snug">
+              Klicke einen Hashtag, um ihn als Hashtag-Suche zu laden. Songs kannst du in TikTok als Sound für deinen Post auswählen.
+            </p>
+          </div>
+        )}
+
         {!loading && videos.length === 0 && !error && (
           <div className="flex flex-col items-center justify-center py-20 text-tiktok-muted">
             <TrendingUp size={40} className="mb-3 opacity-40" />
             <p className="text-sm">Noch keine Ergebnisse.</p>
-            <p className="text-xs mt-1">Gib einen Suchbegriff ein und klicke Suchen.</p>
+            <p className="text-xs mt-1">Wähle einen Modus (Suche · Profil · Hashtag) und lade Videos — oder lade oben die aktuellen Trends.</p>
             <p className="text-xs mt-3 text-center max-w-xs opacity-60">
               Apify API-Key muss in den Einstellungen hinterlegt sein.
             </p>

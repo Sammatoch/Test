@@ -447,24 +447,49 @@ export async function generateImage(prompt, settings, imageProvider = 'openai', 
   }
 }
 
-export async function scrapeViralTikToks(searchQuery, apifyKey, maxResults = 20) {
+// Run any clockworks TikTok actor via the Apify run-sync endpoint and return the dataset items.
+async function runApifyActor(actorId, input, apifyKey, timeout = 180) {
   if (!apifyKey) throw new Error('Bitte Apify API-Key in Einstellungen hinterlegen')
-  const actorId = 'clockworks~free-tiktok-scraper'
-  const url = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${apifyKey}&timeout=120`
+  const url = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${apifyKey}&timeout=${timeout}`
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      searchSection: '/video',
-      searchQueries: [searchQuery],
-      resultsPerPage: maxResults
-    })
+    body: JSON.stringify(input)
   })
   if (!response.ok) {
     const text = await response.text()
     throw new Error(`Apify Fehler ${response.status}: ${text.slice(0, 300)}`)
   }
   return response.json()
+}
+
+// Scrape TikToks in one of three modes — keyword search, a creator's profile, or a hashtag.
+// All three share the clockworks input family, so one function covers them. The robust flag
+// swaps the free actor for the paid, more reliable clockworks/tiktok-scraper (more Apify credits).
+export async function scrapeViralTikToks({ query, mode = 'search', maxResults = 20, robust = false, apifyKey } = {}) {
+  const term = (query || '').trim()
+  if (!term) throw new Error('Bitte einen Suchbegriff / Profilnamen / Hashtag eingeben')
+  const actorId = robust ? 'clockworks~tiktok-scraper' : 'clockworks~free-tiktok-scraper'
+
+  let input
+  if (mode === 'profile') {
+    const username = term.replace(/^@/, '').trim()
+    input = { profiles: [username], resultsPerPage: maxResults, profileScrapeSections: ['videos'] }
+  } else if (mode === 'hashtag') {
+    const tag = term.replace(/^#/, '').trim()
+    input = { hashtags: [tag], resultsPerPage: maxResults }
+  } else {
+    input = { searchSection: '/video', searchQueries: [term], resultsPerPage: maxResults }
+  }
+  return runApifyActor(actorId, input, apifyKey)
+}
+
+// Fetch TikTok Trend Discovery data (trending hashtags & songs) for a country via the
+// dedicated clockworks/tiktok-trends-scraper. Output shapes vary, so callers should read
+// fields defensively.
+export async function scrapeTikTokTrends({ countryCode = 'DE', maxResults = 30, apifyKey } = {}) {
+  const input = { countryCode, region: countryCode, maxItems: maxResults, limit: maxResults }
+  return runApifyActor('clockworks~tiktok-trends-scraper', input, apifyKey)
 }
 
 export async function analyzeViralContent(videos, settings) {
